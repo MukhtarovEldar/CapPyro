@@ -1,4 +1,7 @@
+from highlight_range import *
+
 DIGITS = "0123456789"
+
 
 # -------------- ERROR ----------------
 
@@ -12,11 +15,19 @@ class Error:
     def as_string(self):
         result = f'{self.error_name}: {self.details}\n'
         result += f'File {self.pos_start.fn}, line {self.pos_start.ln + 1}'
+        result += '\n\n' + highlight_range(self.pos_start.ftxt, self.pos_start, self.pos_end)
         return result
 
-class illegalCharError(Error):
+
+class IllegalCharError(Error):
     def __init__(self, pos_start, pos_end, details):
         super().__init__(pos_start, pos_end, 'Illegal Character', details)
+
+
+class InvalidSyntaxError(Error):
+    def __init__(self, pos_start, pos_end, details=''):
+        super().__init__(pos_start, pos_end, 'Invalid Syntax', details)
+
 
 # --------------- POSITION ----------------
 
@@ -28,7 +39,7 @@ class Position:
         self.fn = fn
         self.ftxt = ftxt
 
-    def advance(self, current_char):
+    def advance(self, current_char=None):
         self.idx += 1
         self.col += 1
 
@@ -41,6 +52,7 @@ class Position:
     def copy(self):
         return Position(self.idx, self.ln, self.col, self.fn, self.ftxt)
 
+
 # ---------------- TOKENS ---------------------
 
 TOK_INT = 'INT'
@@ -51,9 +63,11 @@ TOK_MULT = 'MULT'
 TOK_DIV = 'DIV'
 TOK_LPAR = 'LPAR'
 TOK_RPAR = 'RPAR'
+TOK_EOF = 'EOF'
+
 
 class Token:
-    def __init__(self, type_, value = None):
+    def __init__(self, type_, value=None):
         self.type = type_
         self.value = value
 
@@ -61,6 +75,7 @@ class Token:
         if self.value:
             return f'{self.type}:{self.value}'
         return f'{self.type}'
+
 
 # ----------------- LEXER --------------------
 
@@ -106,8 +121,9 @@ class Lex:
                 pos_start = self.pos.copy()
                 char = self.current_char
                 self.advance()
-                return [], illegalCharError(pos_start, self.pos, "'" + char + "'")
+                return [], IllegalCharError(pos_start, self.pos, "'" + char + "'")
 
+        tokens.append(Token(TOK_EOF))
         return tokens, None
 
     def createNumber(self):
@@ -116,7 +132,8 @@ class Lex:
 
         while self.current_char != None and self.current_char in DIGITS + '.':
             if self.current_char == '.':
-                if dot_count == 1: break
+                if dot_count == 1:
+                    break
                 dot_count += 1
                 num_str += '.'
             else:
@@ -128,10 +145,78 @@ class Lex:
         else:
             return Token(TOK_FLOAT, float(num_str))
 
+
+# ---------------- NODE ---------------------
+
+class NumberNode:
+    def __init__(self, tok):
+        self.tok = tok
+
+    def __repr__(self):
+        return f'{self.tok}'
+
+
+class BinOpNode:
+    def __init__(self, left_node, op_tok, right_node):
+        self.left_node = left_node
+        self.op_tok = op_tok
+        self.right_node = right_node
+
+    def __repr__(self):
+        return f'({self.left_node}, {self.op_tok}, {self.right_node})'
+
+
+# --------------- PARSER -------------------
+
+class Parser:
+    def __init__(self, tokens):
+        self.tokens = tokens
+        self.tok_idx = 1
+        self.advance()
+
+    def advance(self, ):
+        self.tok_idx += 1
+        if self.tok_idx < len(self.tokens):
+            self.current_tok = self.tokens[self.tok_idx]
+        return self.current_tok
+
+    def parse(self):
+        res = self.expr()
+        return res
+
+    def factor(self):
+        tok = self.current_tok
+
+        if tok.type in (TOK_INT, TOK_FLOAT):
+            self.advance()
+            return NumberNode(tok)
+
+    def term(self):
+        return self.bin_op(self.factor, (TOK_MULT, TOK_DIV))
+
+    def expr(self):
+        return self.bin_op(self.term, (TOK_PLUS, TOK_MINUS))
+
+    def bin_op(self, func, ops):
+        left = func()
+
+        while self.current_tok.type in ops:
+            op_tok = self.current_tok
+            self.advance()
+            right = func()
+            left = BinOpNode(left, op_tok, right)
+
+        return left
+
+
 # ----------------- RUN ---------------------
 
 def run(fn, text):
     lexer = Lex(fn, text)
     tokens, error = lexer.createTokens()
+    if error: return None, error
 
-    return tokens, error
+    parser = Parser(tokens)
+    ast = parser.parse()
+
+    return ast, None
