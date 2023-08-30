@@ -67,9 +67,17 @@ TOK_EOF = 'EOF'
 
 
 class Token:
-    def __init__(self, type_, value=None):
+    def __init__(self, type_, value=None, pos_start=None, pos_end=None):
         self.type = type_
         self.value = value
+
+        if pos_start:
+            self.pos_start = pos_start.copy()
+            self.pos_end = pos_start.copy()
+            self.pos_end.advance()
+
+        if pos_end:
+            self.pos_end = pos_end
 
     def __repr__(self):
         if self.value:
@@ -94,28 +102,28 @@ class Lex:
     def createTokens(self):
         tokens = []
 
-        while self.current_char is not None:
+        while self.current_char != None:
             if self.current_char in ' \t':
                 self.advance()
             elif self.current_char in DIGITS:
                 tokens.append(self.createNumber())
             elif self.current_char == '+':
-                tokens.append(Token(TOK_PLUS))
+                tokens.append(Token(TOK_PLUS, pos_start=self.pos))
                 self.advance()
             elif self.current_char == '-':
-                tokens.append(Token(TOK_MINUS))
+                tokens.append(Token(TOK_MINUS, pos_start=self.pos))
                 self.advance()
             elif self.current_char == '*':
-                tokens.append(Token(TOK_MULT))
+                tokens.append(Token(TOK_MULT, pos_start=self.pos))
                 self.advance()
             elif self.current_char == '/':
-                tokens.append(Token(TOK_DIV))
+                tokens.append(Token(TOK_DIV, pos_start=self.pos))
                 self.advance()
             elif self.current_char == '(':
-                tokens.append(Token(TOK_LPAR))
+                tokens.append(Token(TOK_LPAR, pos_start=self.pos))
                 self.advance()
             elif self.current_char == ')':
-                tokens.append(Token(TOK_RPAR))
+                tokens.append(Token(TOK_RPAR, pos_start=self.pos))
                 self.advance()
             else:
                 pos_start = self.pos.copy()
@@ -123,12 +131,13 @@ class Lex:
                 self.advance()
                 return [], IllegalCharError(pos_start, self.pos, "'" + char + "'")
 
-        tokens.append(Token(TOK_EOF))
+        tokens.append(Token(TOK_EOF, pos_start=self.pos))
         return tokens, None
 
     def createNumber(self):
         num_str = ''
         dot_count = 0
+        pos_start = self.pos.copy()
 
         while self.current_char != None and self.current_char in DIGITS + '.':
             if self.current_char == '.':
@@ -141,9 +150,9 @@ class Lex:
             self.advance()
 
         if dot_count == 0:
-            return Token(TOK_INT, int(num_str))
+            return Token(TOK_INT, int(num_str), pos_start, self.pos)
         else:
-            return Token(TOK_FLOAT, float(num_str))
+            return Token(TOK_FLOAT, float(num_str), pos_start, self.pos)
 
 
 # ---------------- NODE ---------------------
@@ -166,12 +175,44 @@ class BinOpNode:
         return f'({self.left_node}, {self.op_tok}, {self.right_node})'
 
 
+class UnaryOpNode:
+    def __init__(self, op_tok, node):
+        self.op_tok = op_tok
+        self.node = node
+
+    def __repr__(self):
+        return f'({self.op_tok}, {self.node})'
+
+
+# -------------------- PARSE RESULT -------------------------
+
+class ParseResult:
+    def __init__(self):
+        self.error = None
+        self.node = None
+
+    def register(self, res):
+        if isinstance(res, ParseResult):
+            if res.error:
+                self.error = res.error
+            return res.node
+        return res
+
+    def success(self, node):
+        self.node = node
+        return self
+
+    def failure(self, error):
+        self.error = error
+        return self
+
+
 # --------------- PARSER -------------------
 
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
-        self.tok_idx = 1
+        self.tok_idx = -1
         self.advance()
 
     def advance(self, ):
@@ -182,14 +223,49 @@ class Parser:
 
     def parse(self):
         res = self.expr()
+        if not res.error and self.current_tok.type != TOK_EOF:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '+', '-', '*' or '/'"
+            ))
         return res
 
     def factor(self):
+        res = ParseResult()
         tok = self.current_tok
 
-        if tok.type in (TOK_INT, TOK_FLOAT):
-            self.advance()
-            return NumberNode(tok)
+        if tok.type in (TOK_PLUS, TOK_MINUS):
+            res.register(self.advance())
+            factor = res.register(self.factor())
+            if res.error:
+                return res
+            return res.success(UnaryOpNode(tok, factor))
+
+        elif tok.type in (TOK_INT, TOK_FLOAT):
+            res.register(self.advance())
+            return res.success(NumberNode(tok))
+
+        elif tok.type == TOK_LPAR:
+            res.register(self.advance())
+            expr = res.register(self.expr())
+            if res.error:
+                return res
+            if self.current_tok.type == TOK_RPAR:
+                res.register(self.advance())
+                return res.success(expr)
+            else:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ')'"
+                ))
+
+        return res.failure(InvalidSyntaxError(
+            tok.pos_start,
+            tok.pos_end,
+            "Expected int or float"
+        ))
 
     def term(self):
         return self.bin_op(self.factor, (TOK_MULT, TOK_DIV))
@@ -198,15 +274,18 @@ class Parser:
         return self.bin_op(self.term, (TOK_PLUS, TOK_MINUS))
 
     def bin_op(self, func, ops):
-        left = func()
+        res = ParseResult()
+        left = res.register(func())
+        if res.error: return res
 
         while self.current_tok.type in ops:
             op_tok = self.current_tok
-            self.advance()
-            right = func()
+            res.register(self.advance())
+            right = res.register(func())
+            if res.error: return res
             left = BinOpNode(left, op_tok, right)
 
-        return left
+        return res.success(left)
 
 
 # ----------------- RUN ---------------------
@@ -214,9 +293,10 @@ class Parser:
 def run(fn, text):
     lexer = Lex(fn, text)
     tokens, error = lexer.createTokens()
-    if error: return None, error
+    if error:
+        return None, error
 
     parser = Parser(tokens)
     ast = parser.parse()
 
-    return ast, None
+    return ast.node, ast.error
