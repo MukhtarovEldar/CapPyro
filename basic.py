@@ -30,6 +30,11 @@ class IllegalCharError(Error):
         super().__init__(pos_start, pos_end, 'Illegal Character', details)
 
 
+class ExpectedCharError(Error):
+    def __init__(self, pos_start, pos_end, details):
+        super().__init__(pos_start, pos_end, 'Expected Character', details)
+
+
 class InvalidSyntaxError(Error):
     def __init__(self, pos_start, pos_end, details=''):
         super().__init__(pos_start, pos_end, 'Invalid Syntax', details)
@@ -97,12 +102,21 @@ TOK_MULT = 'MULT'
 TOK_DIV = 'DIV'
 TOK_POW = 'POW'
 TOK_EQ = 'EQ'
+TOK_ISEQ = 'ISEQ'
+TOK_NEQ = 'NEQ'
+TOK_LT = 'LT'
+TOK_GT = 'GT'
+TOK_LEQ = 'LEQ'
+TOK_GEQ = 'GEQ'
 TOK_LPAR = 'LPAR'
 TOK_RPAR = 'RPAR'
 TOK_EOF = 'EOF'
 
 KEYWORDS = [
-    'VAR'
+    'VAR',
+    'AND',
+    'OR',
+    'NOT'
 ]
 
 
@@ -176,6 +190,17 @@ class Lex:
             elif self.current_char == ')':
                 tokens.append(Token(TOK_RPAR, pos_start=self.pos))
                 self.advance()
+            elif self.current_char == '!':
+                token, error = self.create_not_equals()
+                if error:
+                    return [], error
+                tokens.append(token)
+            elif self.current_char == '=':
+                tokens.append(self.create_equals())
+            elif self.current_char == '<':
+                tokens.append(self.create_less_than())
+            elif self.current_char == '>':
+                tokens.append(self.create_greater_than())
             else:
                 pos_start = self.pos.copy()
                 char = self.current_char
@@ -215,6 +240,50 @@ class Lex:
 
         tok_type = TOK_KEYWORD if id_str in KEYWORDS else TOK_ID
         return Token(tok_type, id_str, pos_start, self.pos)
+
+    def create_not_equals(self):
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            return Token(TOK_NEQ, pos_start=pos_start, pos_end=self.pos), None
+
+        self.advance()
+        return None, ExpectedCharError(pos_start, self.pos, "'=' (after '!')")
+
+    def create_equals(self):
+        tok_type = TOK_EQ
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            tok_type = TOK_ISEQ
+
+        return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
+
+    def create_less_than(self):
+        tok_type = TOK_LT
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            tok_type = TOK_LEQ
+
+        return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
+
+    def create_greater_than(self):
+        tok_type = TOK_GT
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            tok_type = TOK_GEQ
+
+        return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
 
 # ---------------- NODES ---------------------
@@ -377,6 +446,33 @@ class Parser:
     def term(self):
         return self.bin_op(self.factor, (TOK_MULT, TOK_DIV))
 
+    def arith_expr(self):
+        return self.bin_op(self.term, (TOK_PLUS, TOK_MINUS))
+
+    def comp_expr(self):
+        res = ParseResult()
+
+        if self.current_tok.matches(TOK_KEYWORD, 'NOT'):
+            op_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+
+            node = res.register(self.comp_expr())
+            if res.error:
+                return res
+            return res.success(UnaryOpNode(op_tok, node))
+
+        node = res.register(self.bin_op(self.arith_expr, (TOK_ISEQ, TOK_NEQ, TOK_LT, TOK_GT, TOK_LEQ, TOK_GEQ)))
+
+        if res.error:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected int, float, identifier, '+', '-', '(' or 'NOT'"
+            ))
+
+        return res.success(node)
+
     def expr(self):
         res = ParseResult()
         if self.current_tok.matches(TOK_KEYWORD, 'VAR'):
@@ -406,7 +502,7 @@ class Parser:
                 return res
             return res.success(VarAssignNode(var_name, expr))
 
-        node = res.register(self.bin_op(self.term, (TOK_PLUS, TOK_MINUS)))
+        node = res.register(self.bin_op(self.comp_expr, ((TOK_KEYWORD, "AND"), (TOK_KEYWORD, "OR"))))
 
         if res.error:
             return res.failure(InvalidSyntaxError(
@@ -424,7 +520,7 @@ class Parser:
         if res.error:
             return res
 
-        while self.current_tok.type in ops:
+        while self.current_tok.type in ops or (self.current_tok.type, self.current_tok.value) in ops:
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -499,6 +595,41 @@ class Number:
     def powered_by(self, other):
         if isinstance(other, Number):
             return Number(self.value ** other.value).set_context(self.context), None
+
+    def get_comparison_eq(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value == other.value)).set_context(self.context), None
+
+    def get_comparison_neq(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value != other.value)).set_context(self.context), None
+
+    def get_comparison_lt(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value < other.value)).set_context(self.context), None
+
+    def get_comparison_gt(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value > other.value)).set_context(self.context), None
+
+    def get_comparison_leq(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value <= other.value)).set_context(self.context), None
+
+    def get_comparison_geq(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value >= other.value)).set_context(self.context), None
+
+    def and_with(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value and other.value)).set_context(self.context), None
+
+    def or_with(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value or other.value)).set_context(self.context), None
+
+    def not_by(self):
+        return Number(1 if self.value == 0 else 0).set_context(self.context), None
 
     def copy(self):
         copy = Number(self.value)
@@ -598,6 +729,22 @@ class Interpreter:
             result, error = left.divided_by(right)
         elif node.op_tok.type == TOK_POW:
             result, error = left.powered_by(right)
+        elif node.op_tok.type == TOK_ISEQ:
+            result, error = left.get_comparison_eq(right)
+        elif node.op_tok.type == TOK_NEQ:
+            result, error = left.get_comparison_neq(right)
+        elif node.op_tok.type == TOK_LT:
+            result, error = left.get_comparison_lt(right)
+        elif node.op_tok.type == TOK_GT:
+            result, error = left.get_comparison_gt(right)
+        elif node.op_tok.type == TOK_LEQ:
+            result, error = left.get_comparison_leq(right)
+        elif node.op_tok.type == TOK_GEQ:
+            result, error = left.get_comparison_geq(right)
+        elif node.op_tok.matches(TOK_KEYWORD, 'AND'):
+            result, error = left.and_with(right)
+        elif node.op_tok.matches(TOK_KEYWORD, 'OR'):
+            result, error = left.or_with(right)
 
         if error:
             return res.failure(error)
@@ -614,6 +761,8 @@ class Interpreter:
 
         if node.op_tok.type == TOK_MINUS:
             number, error = number.multiplied_by(Number(-1))
+        elif node.op_tok.matches(TOK_KEYWORD, 'NOT'):
+            number, error = number.not_by()
 
         if error:
             return res.failure(error)
@@ -625,6 +774,7 @@ class Interpreter:
 
 global_symbol_table = SymbolTable()
 global_symbol_table.set("null", Number(0))
+
 
 def run(fn, text):
     lexer = Lex(fn, text)
