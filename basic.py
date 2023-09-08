@@ -138,6 +138,17 @@ class Token:
 
 # ----------------- LEXER --------------------
 
+OPERATORS = {
+    '+': TOK_PLUS,
+    '-': TOK_MINUS,
+    '*': TOK_MULT,
+    '/': TOK_DIV,
+    '^': TOK_POW,
+    '(': TOK_LPAR,
+    ')': TOK_RPAR,
+}
+
+
 class Lex:
     def __init__(self, name, text):
         self.name = name
@@ -160,27 +171,12 @@ class Lex:
                 tokens.append(self.create_number())
             elif self.current_char in ALPHA:
                 tokens.append(self.create_id())
-            elif self.current_char == '+':
-                tokens.append(Token(TOK_PLUS, pos_beg=self.pos))
-                self.advance()
-            elif self.current_char == '-':
-                tokens.append(Token(TOK_MINUS, pos_beg=self.pos))
-                self.advance()
-            elif self.current_char == '*':
-                tokens.append(Token(TOK_MULT, pos_beg=self.pos))
-                self.advance()
-            elif self.current_char == '/':
-                tokens.append(Token(TOK_DIV, pos_beg=self.pos))
-                self.advance()
-            elif self.current_char == '^':
-                tokens.append(Token(TOK_POW, pos_beg=self.pos))
-                self.advance()
+            elif self.current_char in OPERATORS:
+                tokens.append(self.create_operator())
             elif self.current_char == '(':
-                tokens.append(Token(TOK_LPAR, pos_beg=self.pos))
-                self.advance()
+                tokens.append(self.create_token(TOK_LPAR))
             elif self.current_char == ')':
-                tokens.append(Token(TOK_RPAR, pos_beg=self.pos))
-                self.advance()
+                tokens.append(self.create_token(TOK_RPAR))
             elif self.current_char == '!':
                 token, error = self.create_not_equals()
                 if error:
@@ -203,20 +199,16 @@ class Lex:
 
     def create_number(self):
         num_str = ''
-        dot_cnt = 0
+        dot_count = 0
         pos_beg = self.pos.copy()
 
-        while self.current_char is not None and self.current_char in DIGITS + '.':
+        while self.current_char is not None and (self.current_char in DIGITS or (self.current_char == '.' and dot_count == 0)):
             if self.current_char == '.':
-                if dot_cnt == 1:
-                    break
-                dot_cnt += 1
-                num_str += '.'
-            else:
-                num_str += self.current_char
+                dot_count += 1
+            num_str += self.current_char
             self.advance()
 
-        if dot_cnt == 0:
+        if dot_count == 0:
             return Token(TOK_INT, int(num_str), pos_beg, self.pos)
         else:
             return Token(TOK_FLOAT, float(num_str), pos_beg, self.pos)
@@ -225,12 +217,23 @@ class Lex:
         id_str = ''
         pos_beg = self.pos.copy()
 
-        while self.current_char is not None and self.current_char in ALNUM + '_':
+        while self.current_char is not None and (self.current_char in ALNUM or self.current_char == '_'):
             id_str += self.current_char
             self.advance()
 
         tok_type = TOK_KEYWORD if id_str in KEYWORDS else TOK_ID
         return Token(tok_type, id_str, pos_beg, self.pos)
+
+    def create_operator(self):
+        pos_beg = self.pos.copy()
+        operator = self.current_char
+        self.advance()
+        return Token(OPERATORS[operator], pos_beg=pos_beg, pos_end=self.pos)
+
+    def create_token(self, tok_type):
+        pos_beg = self.pos.copy()
+        self.advance()
+        return Token(tok_type, pos_beg=pos_beg, pos_end=self.pos)
 
     def create_not_equals(self):
         pos_beg = self.pos.copy()
@@ -279,57 +282,62 @@ class Lex:
 
 # ---------------- NODES ---------------------
 
-class NumberNode:
-    def __init__(self, tok):
-        self.tok = tok
-
-        self.pos_beg = self.tok.pos_beg
-        self.pos_end = self.tok.pos_end
+class ASTNode:
+    def __init__(self, pos_beg, pos_end):
+        self.pos_beg = pos_beg
+        self.pos_end = pos_end
 
     def __repr__(self):
-        return f'{self.tok}'
+        return f"{self.__class__.__name__}()"
 
 
-class VarAccessNode:
+class NumberNode(ASTNode):
+    def __init__(self, tok):
+        super().__init__(tok.pos_beg, tok.pos_end)
+        self.tok = tok
+
+    def __repr__(self):
+        return f"{self.tok}"
+
+
+class VarAccessNode(ASTNode):
     def __init__(self, var_name_tok):
+        super().__init__(var_name_tok.pos_beg, var_name_tok.pos_end)
         self.var_name_tok = var_name_tok
 
-        self.pos_beg = self.var_name_tok.pos_beg
-        self.pos_end = self.var_name_tok.pos_end
+    def __repr__(self):
+        return f"{self.var_name_tok}"
 
 
-class VarAssignNode:
+class VarAssignNode(ASTNode):
     def __init__(self, var_name_tok, value_node):
+        super().__init__(var_name_tok.pos_beg, value_node.pos_end)
         self.var_name_tok = var_name_tok
         self.value_node = value_node
 
-        self.pos_beg = self.var_name_tok.pos_beg
-        self.pos_end = self.value_node.pos_end
+    def __repr__(self):
+        return f"(VarAssignNode: {self.var_name_tok} = {self.value_node})"
 
 
-class BinOpNode:
+class BinOpNode(ASTNode):
     def __init__(self, left_node, operator_token, right_node):
+        super().__init__(left_node.pos_beg, right_node.pos_end)
         self.left_node = left_node
         self.operator_token = operator_token
         self.right_node = right_node
 
-        self.pos_beg = self.left_node.pos_beg
-        self.pos_end = self.right_node.pos_end
-
     def __repr__(self):
-        return f'({self.left_node}, {self.operator_token}, {self.right_node})'
+        return f"({self.left_node} {self.operator_token} {self.right_node})"
 
 
-class UnaryOpNode:
+class UnaryOpNode(ASTNode):
     def __init__(self, operator_token, node):
+        super().__init__(operator_token.pos_beg, node.pos_end)
         self.operator_token = operator_token
         self.node = node
 
-        self.pos_beg = self.operator_token.pos_beg
-        self.pos_end = node.pos_end
-
     def __repr__(self):
-        return f'({self.operator_token}, {self.node})'
+        return f"({self.operator_token}{self.node})"
 
 
 # -------------------- PARSE RESULT -------------------------
@@ -452,6 +460,7 @@ class Parser:
             node = res.register(self.comp_expr())
             if res.error:
                 return res
+
             return res.success(UnaryOpNode(operator_token, node))
 
         node = res.register(self.bin_op(self.arith_expr, (TOK_ISEQ, TOK_NEQ, TOK_LT, TOK_GT, TOK_LEQ, TOK_GEQ)))
@@ -467,6 +476,7 @@ class Parser:
 
     def expr(self):
         res = ParseResult()
+
         if self.current_tok.is_match(TOK_KEYWORD, 'VAR'):
             res.register_advancement()
             self.advance()
@@ -489,9 +499,11 @@ class Parser:
 
             res.register_advancement()
             self.advance()
+
             expr = res.register(self.expr())
             if res.error:
                 return res
+
             return res.success(VarAssignNode(var_name, expr))
 
         node = res.register(self.bin_op(self.comp_expr, ((TOK_KEYWORD, "AND"), (TOK_KEYWORD, "OR"))))
@@ -505,8 +517,7 @@ class Parser:
         return res.success(node)
 
     def bin_op(self, func_a, ops, func_b=None):
-        if func_b is None:
-            func_b = func_a
+        func_b = func_b or func_a
         res = ParseResult()
         left = res.register(func_a())
         if res.error:
@@ -516,9 +527,11 @@ class Parser:
             operator_token = self.current_tok
             res.register_advancement()
             self.advance()
+
             right = res.register(func_b())
             if res.error:
                 return res
+
             left = BinOpNode(left, operator_token, right)
 
         return res.success(left)
@@ -550,8 +563,6 @@ class RTResult:
 class Number:
     def __init__(self, value):
         self.value = value
-        self.set_pos()
-        self.set_context()
         self.pos_beg = None
         self.pos_end = None
         self.context = None
@@ -670,7 +681,7 @@ class SymbolTable:
 # ------------- INTERPRETER -----------------
 
 class Interpreter:
-    def visit(self, node, context):
+    def execute(self, node, context):
         method_name = f'execute_{type(node).__name__}'
         method = getattr(self, method_name, self.no_execute_method)
         return method(node, context)
@@ -701,7 +712,7 @@ class Interpreter:
     def execute_VarAssignNode(self, node, context):
         res = RTResult()
         var_name = node.var_name_tok.value
-        value = res.register(self.visit(node.value_node, context))
+        value = res.register(self.execute(node.value_node, context))
         if res.error:
             return res
 
@@ -710,10 +721,10 @@ class Interpreter:
 
     def execute_BinOpNode(self, node, context):
         res = RTResult()
-        left = res.register(self.visit(node.left_node, context))
+        left = res.register(self.execute(node.left_node, context))
         if res.error:
             return res
-        right = res.register(self.visit(node.right_node, context))
+        right = res.register(self.execute(node.right_node, context))
         if res.error:
             return res
 
@@ -754,7 +765,7 @@ class Interpreter:
 
     def execute_UnaryOpNode(self, node, context):
         res = RTResult()
-        number = res.register(self.visit(node.node, context))
+        number = res.register(self.execute(node.node, context))
         if res.error:
             return res
 
@@ -791,6 +802,6 @@ def run_program(name, text):
     interpreter = Interpreter()
     context = Context('<program>')
     context.symbol_table = global_symbol_table
-    result = interpreter.visit(ast.node, context)
+    result = interpreter.execute(ast.node, context)
 
     return result.value, result.error
