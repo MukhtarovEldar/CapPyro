@@ -4,4 +4,7 @@ while True:
     text = input('basic > ')
     result, error = basic.run_program('<stdin>', text)
 
-    print(error.to_string()) if error else print(result)
+    if error:
+        print(error.to_string())
+    elif result:
+        print(result)
