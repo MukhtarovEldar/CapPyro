@@ -110,7 +110,11 @@ KEYWORDS = [
     'VAR',
     'AND',
     'OR',
-    'NOT'
+    'NOT',
+    'IF',
+    'ELSE',
+    'THEN',
+    'ELIF'
 ]
 
 
@@ -202,7 +206,8 @@ class Lex:
         dot_count = 0
         pos_beg = self.pos.copy()
 
-        while self.current_char is not None and (self.current_char in DIGITS or (self.current_char == '.' and dot_count == 0)):
+        while self.current_char is not None and (
+                self.current_char in DIGITS or (self.current_char == '.' and dot_count == 0)):
             if self.current_char == '.':
                 dot_count += 1
             num_str += self.current_char
@@ -280,6 +285,158 @@ class Lex:
         return Token(tok_type, pos_beg=pos_beg, pos_end=self.pos)
 
 
+# class Lex:
+#     def __init__(self, name, text):
+#         self.name = name
+#         self.text = text
+#         self.pos = Position(-1, 0, -1, name, text)
+#         self.current_char = None
+#         self.advance()
+#
+#     def advance(self):
+#         self.pos.advance(self.current_char)
+#         self.current_char = self.text[self.pos.index] if self.pos.index < len(self.text) else None
+#
+#     def create_tokens(self):
+#         tokens = []
+#
+#         while self.current_char is not None:
+#             if self.current_char in ' \t':
+#                 self.advance()
+#             elif self.current_char in DIGITS:
+#                 tokens.append(self.create_number())
+#             elif self.current_char in ALPHA:
+#                 tokens.append(self.create_id())
+#             elif self.current_char in OPERATORS:
+#                 tokens.append(self.create_operator())
+#             elif self.current_char == '+':
+#                 tokens.append(Token(TOK_PLUS, pos_beg=self.pos))
+#                 self.advance()
+#             elif self.current_char == '-':
+#                 tokens.append(Token(TOK_MINUS, pos_beg=self.pos))
+#                 self.advance()
+#             elif self.current_char == '*':
+#                 tokens.append(Token(TOK_MULT, pos_beg=self.pos))
+#                 self.advance()
+#             elif self.current_char == '/':
+#                 tokens.append(Token(TOK_DIV, pos_beg=self.pos))
+#                 self.advance()
+#             elif self.current_char == '^':
+#                 tokens.append(Token(TOK_POW, pos_beg=self.pos))
+#                 self.advance()
+#             elif self.current_char == '(':
+#                 tokens.append(Token(TOK_LPAR, pos_beg=self.pos))
+#                 self.advance()
+#             elif self.current_char == ')':
+#                 tokens.append(Token(TOK_RPAR, pos_beg=self.pos))
+#                 self.advance()
+#             elif self.current_char == '!':
+#                 token, error = self.create_not_equals()
+#                 if error:
+#                     return [], error
+#                 tokens.append(token)
+#             elif self.current_char == '=':
+#                 tokens.append(self.create_equals())
+#             elif self.current_char == '<':
+#                 tokens.append(self.create_less_than())
+#             elif self.current_char == '>':
+#                 tokens.append(self.create_greater_than())
+#             else:
+#                 pos_beg = self.pos.copy()
+#                 char = self.current_char
+#                 self.advance()
+#                 return [], IllegalCharError(pos_beg, self.pos, "'" + char + "'")
+#
+#         tokens.append(Token(TOK_EOF, pos_beg=self.pos))
+#         return tokens, None
+#
+#     def create_number(self):
+#         num_str = ''
+#         dot_cnt = 0
+#         pos_beg = self.pos.copy()
+#
+#         while self.current_char is not None and self.current_char in DIGITS + '.':
+#             if self.current_char == '.':
+#                 if dot_cnt == 1:
+#                     break
+#                 dot_cnt += 1
+#                 num_str += '.'
+#             else:
+#                 num_str += self.current_char
+#             self.advance()
+#
+#         if dot_cnt == 0:
+#             return Token(TOK_INT, int(num_str), pos_beg, self.pos)
+#         else:
+#             return Token(TOK_FLOAT, float(num_str), pos_beg, self.pos)
+#
+#     def create_id(self):
+#         id_str = ''
+#         pos_beg = self.pos.copy()
+#
+#         while self.current_char is not None and self.current_char in ALNUM + '_':
+#             id_str += self.current_char
+#             self.advance()
+#
+#         tok_type = TOK_KEYWORD if id_str in KEYWORDS else TOK_ID
+#         return Token(tok_type, id_str, pos_beg, self.pos)
+#
+#     def create_operator(self):
+#         pos_beg = self.pos.copy()
+#         operator = self.current_char
+#         self.advance()
+#         return Token(OPERATORS[operator], pos_beg=pos_beg, pos_end=self.pos)
+#
+#     def create_token(self, tok_type):
+#         pos_beg = self.pos.copy()
+#         self.advance()
+#         return Token(tok_type, pos_beg=pos_beg, pos_end=self.pos)
+#
+#     def create_not_equals(self):
+#         pos_beg = self.pos.copy()
+#         self.advance()
+#
+#         if self.current_char == '=':
+#             self.advance()
+#             return Token(TOK_NEQ, pos_beg=pos_beg, pos_end=self.pos), None
+#
+#         self.advance()
+#         return None, ExpectedCharError(pos_beg, self.pos, "'=' (after '!')")
+#
+#     def create_equals(self):
+#         tok_type = TOK_EQ
+#         pos_beg = self.pos.copy()
+#         self.advance()
+#
+#         if self.current_char == '=':
+#             self.advance()
+#             tok_type = TOK_ISEQ
+#
+#         return Token(tok_type, pos_beg=pos_beg, pos_end=self.pos)
+#
+#     def create_less_than(self):
+#         tok_type = TOK_LT
+#         pos_beg = self.pos.copy()
+#         self.advance()
+#
+#         if self.current_char == '=':
+#             self.advance()
+#             tok_type = TOK_LEQ
+#
+#         return Token(tok_type, pos_beg=pos_beg, pos_end=self.pos)
+#
+#     def create_greater_than(self):
+#         tok_type = TOK_GT
+#         pos_beg = self.pos.copy()
+#         self.advance()
+#
+#         if self.current_char == '=':
+#             self.advance()
+#             tok_type = TOK_GEQ
+#
+#         return Token(tok_type, pos_beg=pos_beg, pos_end=self.pos)
+
+
 # ---------------- NODES ---------------------
 
 class ASTNode:
@@ -340,6 +497,15 @@ class UnaryOpNode(ASTNode):
         return f"({self.operator_token}{self.node})"
 
 
+class IfNode:
+    def __init__(self, cases, else_case):
+        self.cases = cases
+        self.else_case = else_case
+
+        self.pos_beg = self.cases[0][0].pos_beg
+        self.pos_end = (self.else_case or self.cases[len(self.cases) - 1][0]).pos_end
+
+
 # -------------------- PARSE RESULT -------------------------
 
 class ParseResult:
@@ -391,6 +557,71 @@ class Parser:
                 "Expected '+', '-', '*' or '/'"))
         return res
 
+    def if_expr(self):
+        res = ParseResult()
+        cases = []
+        else_case = None
+
+        if not self.current_tok.is_match(TOK_KEYWORD, 'IF'):
+            return res.failure(SyntaxError(
+                self.current_tok.pos_beg,
+                self.current_tok.pos_end,
+                f"Expected 'IF'"
+            ))
+
+        res.register_advancement()
+        self.advance()
+
+        condition = res.register(self.expr())
+        if res.error:
+            return res
+
+        if not self.current_tok.is_match(TOK_KEYWORD, 'THEN'):
+            return res.failure(SyntaxError(
+                self.current_tok.pos_beg, self.current_tok.pos_end,
+                f"Expected 'THEN'"
+            ))
+
+        res.register_advancement()
+        self.advance()
+
+        expr = res.register(self.expr())
+        if res.error:
+            return res
+        cases.append((condition, expr))
+
+        while self.current_tok.is_match(TOK_KEYWORD, 'ELIF'):
+            res.register_advancement()
+            self.advance()
+
+            condition = res.register(self.expr())
+            if res.error:
+                return res
+
+            if not self.current_tok.is_match(TOK_KEYWORD, 'THEN'):
+                return res.failure(SyntaxError(
+                    self.current_tok.pos_beg, self.current_tok.pos_end,
+                    f"Expected 'THEN'"
+                ))
+
+            res.register_advancement()
+            self.advance()
+
+            expr = res.register(self.expr())
+            if res.error:
+                return res
+            cases.append((condition, expr))
+
+        if self.current_tok.is_match(TOK_KEYWORD, 'ELSE'):
+            res.register_advancement()
+            self.advance()
+
+            else_case = res.register(self.expr())
+            if res.error:
+                return res
+
+        return res.success(IfNode(cases, else_case))
+
     def atom(self):
         res = ParseResult()
         tok = self.current_tok
@@ -420,6 +651,11 @@ class Parser:
                     self.current_tok.pos_beg,
                     self.current_tok.pos_end,
                     "Expected ')'"))
+        elif tok.is_match(TOK_KEYWORD, 'IF'):
+            if_expr = res.register(self.if_expr())
+            if res.error:
+                return res
+            return res.success(if_expr)
 
         return res.failure(SyntaxError(
             tok.pos_beg,
@@ -644,6 +880,9 @@ class Number:
         copy.set_context(self.context)
         return copy
 
+    def is_true(self):
+        return self.value != 0
+
     def __repr__(self):
         return str(self.value)
 
@@ -780,6 +1019,28 @@ class Interpreter:
             return res.failure(error)
         else:
             return res.success(number.set_pos(node.pos_beg, node.pos_end))
+
+    def execute_IfNode(self, node, context):
+        res = RTResult()
+
+        for condition, expr in node.cases:
+            condition_value = res.register(self.execute(condition, context))
+            if res.error:
+                return res
+
+            if condition_value.is_true():
+                expr_value = res.register(self.execute(expr, context))
+                if res.error:
+                    return res
+                return res.success(expr_value)
+
+        if node.else_case:
+            else_value = res.register(self.execute(node.else_case, context))
+            if res.error:
+                return res
+            return res.success(else_value)
+
+        return res.success(None)
 
 
 # ----------------- RUN ---------------------
