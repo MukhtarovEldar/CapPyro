@@ -1,8 +1,8 @@
-import basic
+import interpreter
 
 while True:
-    text = input('basic > ')
-    result, error = basic.run_program('<stdin>', text)
+    text = input('cap > ')
+    result, error = interpreter.run_program('<stdin>', text)
 
     if error:
         print(error.to_string())
