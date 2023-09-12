@@ -1,6 +1,6 @@
-from tokens import *
-from position import *
-from error import *
+from .tokens import *
+from .position import *
+from .error import *
 import string
 
 DIGITS = "0123456789"
