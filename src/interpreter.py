@@ -1,6 +1,6 @@
-from lexer import *
-from parser import *
-from values import *
+from .lexer import *
+from .parser import *
+from .values import *
 
 
 # ----------- RUNTIME RESULT ----------------

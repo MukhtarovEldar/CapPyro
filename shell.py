@@ -1,4 +1,4 @@
-import interpreter
+from src import interpreter
 
 while True:
     text = input('cap > ')
