@@ -28,7 +28,11 @@ KEYWORDS = [
     'IF',
     'ELSE',
     'THEN',
-    'ELIF'
+    'ELIF',
+    'WHILE',
+    'FOR',
+    'TO',
+    'STEP'
 ]
 
 

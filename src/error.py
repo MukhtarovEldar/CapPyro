@@ -2,6 +2,7 @@ from .highlight_range import *
 
 # ----------------- ERROR -----------------------
 
+
 class Error:
     def __init__(self, pos_beg, pos_end, error_name, details):
         self.pos_beg = pos_beg
@@ -25,7 +26,7 @@ class ExpectedCharError(Error):
         super().__init__(pos_beg, pos_end, 'Expected Character', details)
 
 
-class SyntaxError(Error):
+class InvalidSyntaxError(Error):
     def __init__(self, pos_beg, pos_end, details=''):
         super().__init__(pos_beg, pos_end, 'Invalid Syntax', details)
 
@@ -51,4 +52,3 @@ class RTError(Error):
             ctx = ctx.parent
 
         return 'Traceback (most recent call last):\n' + result
-
