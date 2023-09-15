@@ -34,12 +34,18 @@ python shell.py
   - `power` - A power operation.
 
 - **power** -- Represents a power operation.
-  - `atom (POW factor)*` - Exponentiation of an atom by a factor.
+  - `call (POW factor)*` - Exponentiation of an atom by a factor.
+
+- **call** -- Represents a function call allowing for passing arguments.
+  - `atom (LPAR (expr (COMMA expr)*)* RPAR)*` - A call to a function passing zero or more arguments enclosed in parentheses.
 
 - **atom** -- Represents the basic building blocks of expressions.
   - `INT | FLOAT | ID` - Integer, floating-point number, or identifier.
   - `LPAR expr RPAR` - An expression enclosed in parentheses.
   - `if-expr` - An if-else statement.
+  - `while-expr` - A while-loop statement.
+  - `for-expr` - A for-loop statement.
+  - `func-def` - A function definition statement.
 
 - **if-expr** -- Represents an if-else statement.
   - `IF expr THEN expr (ELIF expr THEN expr)* (ELSE expr)*` - Conditional statements with optional elif and else branches.
@@ -50,11 +56,16 @@ python shell.py
 - **for-expr** -- Represents a for-loop statement.
   - `FOR ID EQ expr TO expr (STEP expr)* THEN expr` - A loop that iterates from an initial value to a final value with an optional step value (defaulting to 1 if not provided).
 
+- **func-def** -- Represents the definition of a user-defined function.
+  - `FUNC (ID)* LPAR (ID (COMMA ID)*)* RPAR COLON expr` - Defines a function with an identifier, a list of parameters, and a body expression.
+
+
 ### Special Keywords
 The following keywords are reserved and may not be used as variable or function name:
 ```
-AND     ELSE	ELIF	END     FOR     IF	NOT
-OR      PRINT   STEP	THEN	TO      VAR	WHILE
+AND     COLON   COMMA   ELSE	ELIF	END     
+FOR     FUNC    IF      NOT     OR      PRINT
+STEP    THEN	TO      VAR	WHILE
 ```
 
 

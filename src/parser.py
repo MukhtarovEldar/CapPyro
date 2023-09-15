@@ -54,6 +54,196 @@ class Parser:
                 "Expected '+', '-', '*' or '/'"))
         return res
 
+    def expr(self):
+        res = ParseResult()
+
+        if self.current_tok.is_match(TOK_KEYWORD, 'VAR'):
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TOK_ID:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_beg,
+                    self.current_tok.pos_end,
+                    "Expected identifier"))
+
+            var_name = self.current_tok
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TOK_EQ:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_beg,
+                    self.current_tok.pos_end,
+                    "Expected '='"))
+
+            res.register_advancement()
+            self.advance()
+
+            expr = res.register(self.expr())
+            if res.error:
+                return res
+
+            return res.success(VarAssignNode(var_name, expr))
+
+        node = res.register(self.bin_op(self.comp_expr, ((TOK_KEYWORD, "AND"), (TOK_KEYWORD, "OR"))))
+
+        if res.error:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_beg,
+                self.current_tok.pos_end,
+                "Expected 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(' or 'NOT'"))
+
+        return res.success(node)
+
+    def comp_expr(self):
+        res = ParseResult()
+
+        if self.current_tok.is_match(TOK_KEYWORD, 'NOT'):
+            operator_token = self.current_tok
+            res.register_advancement()
+            self.advance()
+
+            node = res.register(self.comp_expr())
+            if res.error:
+                return res
+
+            return res.success(UnaryOpNode(operator_token, node))
+
+        node = res.register(self.bin_op(self.arith_expr, (TOK_ISEQ, TOK_NEQ, TOK_LT, TOK_GT, TOK_LEQ, TOK_GEQ)))
+
+        if res.error:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_beg,
+                self.current_tok.pos_end,
+                "Expected int, float, identifier, '+', '-', '(' or 'NOT'"
+            ))
+
+        return res.success(node)
+
+    def arith_expr(self):
+        return self.bin_op(self.term, (TOK_PLUS, TOK_MINUS))
+
+    def term(self):
+        return self.bin_op(self.factor, (TOK_MULT, TOK_DIV))
+
+    def factor(self):
+        res = ParseResult()
+        tok = self.current_tok
+
+        if tok.type in (TOK_PLUS, TOK_MINUS):
+            res.register_advancement()
+            self.advance()
+            factor = res.register(self.factor())
+            if res.error:
+                return res
+            return res.success(UnaryOpNode(tok, factor))
+
+        return self.power()
+
+    def power(self):
+        return self.bin_op(self.call, (TOK_POW,), self.factor)
+
+    def call(self):
+        res = ParseResult()
+        atom = res.register(self.atom())
+        if res.error:
+            return res
+
+        if self.current_tok.type == TOK_LPAR:
+            res.register_advancement()
+            self.advance()
+            arg_nodes = []
+
+            if self.current_tok.type == TOK_RPAR:
+                res.register_advancement()
+                self.advance()
+            else:
+                arg_nodes.append(res.register(self.expr()))
+                if res.error:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_beg,
+                        self.current_tok.pos_end,
+                        "Expected ')', 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', "
+                        "'(' or 'NOT' "))
+
+                while self.current_tok.type == TOK_COMMA:
+                    res.register_advancement()
+                    self.advance()
+
+                    arg_nodes.append(res.register(self.expr()))
+                    if res.error:
+                        return res
+
+                if self.current_tok.type != TOK_RPAR:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_beg,
+                        self.current_tok.pos_end,
+                        f"Expected ',' or ')'"))
+
+                res.register_advancement()
+                self.advance()
+            return res.success(CallNode(atom, arg_nodes))
+        return res.success(atom)
+
+    def atom(self):
+        res = ParseResult()
+        tok = self.current_tok
+
+        if tok.type in (TOK_INT, TOK_FLOAT):
+            res.register_advancement()
+            self.advance()
+            return res.success(NumberNode(tok))
+
+        elif tok.type == TOK_ID:
+            res.register_advancement()
+            self.advance()
+            return res.success(VarAccessNode(tok))
+
+        elif tok.type == TOK_LPAR:
+            res.register_advancement()
+            self.advance()
+            expr = res.register(self.expr())
+            if res.error:
+                return res
+            if self.current_tok.type == TOK_RPAR:
+                res.register_advancement()
+                self.advance()
+                return res.success(expr)
+            else:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_beg,
+                    self.current_tok.pos_end,
+                    "Expected ')'"))
+        elif tok.is_match(TOK_KEYWORD, 'IF'):
+            if_expr = res.register(self.if_expr())
+            if res.error:
+                return res
+            return res.success(if_expr)
+
+        elif tok.is_match(TOK_KEYWORD, 'FOR'):
+            for_expr = res.register(self.for_expr())
+            if res.error:
+                return res
+            return res.success(for_expr)
+
+        elif tok.is_match(TOK_KEYWORD, 'WHILE'):
+            while_expr = res.register(self.while_expr())
+            if res.error:
+                return res
+            return res.success(while_expr)
+
+        elif tok.is_match(TOK_KEYWORD, 'FUNC'):
+            func_def = res.register(self.func_def())
+            if res.error:
+                return res
+            return res.success(func_def)
+
+        return res.failure(InvalidSyntaxError(
+            tok.pos_beg,
+            tok.pos_end,
+            "Expected int, float, identifier, '+', '-', '(', 'IF', 'FOR', 'WHILE', 'FUN'"))
+
     def if_expr(self):
         res = ParseResult()
         cases = []
@@ -222,147 +412,91 @@ class Parser:
 
         return res.success(WhileNode(condition, body))
 
-    def atom(self):
+    def func_def(self):
         res = ParseResult()
-        tok = self.current_tok
 
-        if tok.type in (TOK_INT, TOK_FLOAT):
+        if not self.current_tok.is_match(TOK_KEYWORD, 'FUNC'):
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_beg,
+                self.current_tok.pos_end,
+                f"Expected 'FUNC'"))
+
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type == TOK_ID:
+            var_name_token = self.current_tok
             res.register_advancement()
             self.advance()
-            return res.success(NumberNode(tok))
+            if self.current_tok.type != TOK_LPAR:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_beg,
+                    self.current_tok.pos_end,
+                    f"Expected '('"))
+        else:
+            var_name_token = None
+            if self.current_tok.type != TOK_LPAR:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_beg,
+                    self.current_tok.pos_end,
+                    f"Expected identifier or '('"))
 
-        elif tok.type == TOK_ID:
+        res.register_advancement()
+        self.advance()
+        arg_name_tokens = []
+
+        if self.current_tok.type == TOK_ID:
+            arg_name_tokens.append(self.current_tok)
             res.register_advancement()
             self.advance()
-            return res.success(VarAccessNode(tok))
 
-        elif tok.type == TOK_LPAR:
-            res.register_advancement()
-            self.advance()
-            expr = res.register(self.expr())
-            if res.error:
-                return res
-            if self.current_tok.type == TOK_RPAR:
+            while self.current_tok.type == TOK_COMMA:
                 res.register_advancement()
                 self.advance()
-                return res.success(expr)
-            else:
+
+                if self.current_tok.type != TOK_ID:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_beg,
+                        self.current_tok.pos_end,
+                        f"Expected identifier"))
+
+                arg_name_tokens.append(self.current_tok)
+                res.register_advancement()
+                self.advance()
+
+            if self.current_tok.type != TOK_RPAR:
                 return res.failure(InvalidSyntaxError(
                     self.current_tok.pos_beg,
                     self.current_tok.pos_end,
-                    "Expected ')'"))
-        elif tok.is_match(TOK_KEYWORD, 'IF'):
-            if_expr = res.register(self.if_expr())
-            if res.error:
-                return res
-            return res.success(if_expr)
+                    f"Expected ',' or ')'"))
+        else:
+            if self.current_tok.type != TOK_RPAR:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_beg,
+                    self.current_tok.pos_end,
+                    f"Expected identifier or ')'"))
 
-        elif tok.is_match(TOK_KEYWORD, 'FOR'):
-            for_expr = res.register(self.for_expr())
-            if res.error:
-                return res
-            return res.success(for_expr)
+        res.register_advancement()
+        self.advance()
 
-        elif tok.is_match(TOK_KEYWORD, 'WHILE'):
-            while_expr = res.register(self.while_expr())
-            if res.error:
-                return res
-            return res.success(while_expr)
-
-        return res.failure(InvalidSyntaxError(
-            tok.pos_beg,
-            tok.pos_end,
-            "Expected int, float, identifier, '+', '-' or '('"))
-
-    def power(self):
-        return self.bin_op(self.atom, (TOK_POW,), self.factor)
-
-    def factor(self):
-        res = ParseResult()
-        tok = self.current_tok
-
-        if tok.type in (TOK_PLUS, TOK_MINUS):
-            res.register_advancement()
-            self.advance()
-            factor = res.register(self.factor())
-            if res.error:
-                return res
-            return res.success(UnaryOpNode(tok, factor))
-
-        return self.power()
-
-    def term(self):
-        return self.bin_op(self.factor, (TOK_MULT, TOK_DIV))
-
-    def arith_expr(self):
-        return self.bin_op(self.term, (TOK_PLUS, TOK_MINUS))
-
-    def comp_expr(self):
-        res = ParseResult()
-
-        if self.current_tok.is_match(TOK_KEYWORD, 'NOT'):
-            operator_token = self.current_tok
-            res.register_advancement()
-            self.advance()
-
-            node = res.register(self.comp_expr())
-            if res.error:
-                return res
-
-            return res.success(UnaryOpNode(operator_token, node))
-
-        node = res.register(self.bin_op(self.arith_expr, (TOK_ISEQ, TOK_NEQ, TOK_LT, TOK_GT, TOK_LEQ, TOK_GEQ)))
-
-        if res.error:
+        if self.current_tok.type != TOK_COLON:
             return res.failure(InvalidSyntaxError(
                 self.current_tok.pos_beg,
                 self.current_tok.pos_end,
-                "Expected int, float, identifier, '+', '-', '(' or 'NOT'"
-            ))
+                f"Expected ':'"))
 
-        return res.success(node)
+        res.register_advancement()
+        self.advance()
 
-    def expr(self):
-        res = ParseResult()
-
-        if self.current_tok.is_match(TOK_KEYWORD, 'VAR'):
-            res.register_advancement()
-            self.advance()
-
-            if self.current_tok.type != TOK_ID:
-                return res.failure(InvalidSyntaxError(
-                    self.current_tok.pos_beg,
-                    self.current_tok.pos_end,
-                    "Expected identifier"))
-
-            var_name = self.current_tok
-            res.register_advancement()
-            self.advance()
-
-            if self.current_tok.type != TOK_EQ:
-                return res.failure(InvalidSyntaxError(
-                    self.current_tok.pos_beg,
-                    self.current_tok.pos_end,
-                    "Expected '='"))
-
-            res.register_advancement()
-            self.advance()
-
-            expr = res.register(self.expr())
-            if res.error:
-                return res
-
-            return res.success(VarAssignNode(var_name, expr))
-
-        node = res.register(self.bin_op(self.comp_expr, ((TOK_KEYWORD, "AND"), (TOK_KEYWORD, "OR"))))
-
+        node_to_return = res.register(self.expr())
         if res.error:
-            return res.failure(InvalidSyntaxError(
-                self.current_tok.pos_beg,
-                self.current_tok.pos_end,
-                "Expected 'VAR', int, float, identifier, '+', '-' or '('"))
+            return res
 
-        return res.success(node)
+        return res.success(FuncDefNode(
+            var_name_token,
+            arg_name_tokens,
+            node_to_return
+        ))
 
     def bin_op(self, func_a, ops, func_b=None):
         func_b = func_b or func_a

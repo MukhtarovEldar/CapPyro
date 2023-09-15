@@ -60,6 +60,12 @@ class Lex:
                 tokens.append(self.create_less_than())
             elif self.current_char == '>':
                 tokens.append(self.create_greater_than())
+            elif self.current_char == ',':
+                tokens.append(Token(TOK_COMMA, pos_beg=self.pos))
+                self.advance()
+            elif self.current_char == ':':
+                tokens.append(Token(TOK_COLON, pos_beg=self.pos))
+                self.advance()
             else:
                 pos_beg = self.pos.copy()
                 char = self.current_char

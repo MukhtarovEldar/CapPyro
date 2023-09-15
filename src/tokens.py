@@ -19,6 +19,8 @@ TOK_GEQ = 'GEQ'
 TOK_LPAR = 'LPAR'
 TOK_RPAR = 'RPAR'
 TOK_EOF = 'EOF'
+TOK_COMMA = 'COMMA',
+TOK_COLON = 'COLON'
 
 KEYWORDS = [
     'VAR',
@@ -32,7 +34,8 @@ KEYWORDS = [
     'WHILE',
     'FOR',
     'TO',
-    'STEP'
+    'STEP',
+    'FUNC'
 ]
 
 

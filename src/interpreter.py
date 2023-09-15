@@ -1,7 +1,255 @@
 from .lexer import *
 from .parser import *
-from .values import *
 from .error import *
+
+
+# ---------------- VALUES -------------------
+
+class Value:
+    def __init__(self):
+        self.set_pos()
+        self.set_context()
+        self.pos_beg = None
+        self.pos_end = None
+        self.context = None
+
+    def set_pos(self, pos_beg=None, pos_end=None):
+        self.pos_beg = pos_beg
+        self.pos_end = pos_end
+        return self
+
+    def set_context(self, context=None):
+        self.context = context
+        return self
+
+    def add(self, other):
+        return None, self.illegal_operation(other)
+
+    def subtract(self, other):
+        return None, self.illegal_operation(other)
+
+    def multiply(self, other):
+        return None, self.illegal_operation(other)
+
+    def divide(self, other):
+        return None, self.illegal_operation(other)
+
+    def exponentiate(self, other):
+        return None, self.illegal_operation(other)
+
+    def equals(self, other):
+        return None, self.illegal_operation(other)
+
+    def not_equals(self, other):
+        return None, self.illegal_operation(other)
+
+    def less_than(self, other):
+        return None, self.illegal_operation(other)
+
+    def greater_than(self, other):
+        return None, self.illegal_operation(other)
+
+    def less_than_or_equal(self, other):
+        return None, self.illegal_operation(other)
+
+    def greater_than_or_equal(self, other):
+        return None, self.illegal_operation(other)
+
+    def logical_and(self, other):
+        return None, self.illegal_operation(other)
+
+    def logical_or(self, other):
+        return None, self.illegal_operation(other)
+
+    def logical_not(self):
+        return None, self.illegal_operation(other)
+
+    def test(self, args):
+        return RTResult().failure(self.illegal_operation())
+
+    def copy(self):
+        raise Exception('No copy method defined')
+
+    @staticmethod
+    def is_true():
+        return False
+
+    def illegal_operation(self, other=None):
+        if not other:
+            other = self
+        return RTError(
+            self.pos_beg, other.pos_end,
+            'Illegal operation',
+            self.context
+        )
+
+
+class Number(Value):
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+        self.pos_beg = None
+        self.pos_end = None
+        self.context = None
+
+    # def set_pos(self, pos_beg=None, pos_end=None):
+    #     self.pos_beg = pos_beg
+    #     self.pos_end = pos_end
+    #     return self
+    #
+    # def set_context(self, context=None):
+    #     self.context = context
+    #     return self
+
+    def add(self, other):
+        if isinstance(other, Number):
+            return Number(self.value + other.value).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def subtract(self, other):
+        if isinstance(other, Number):
+            return Number(self.value - other.value).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def multiply(self, other):
+        if isinstance(other, Number):
+            return Number(self.value * other.value).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def divide(self, other):
+        if isinstance(other, Number):
+            if other.value == 0:
+                return None, RTError(
+                    other.pos_beg, other.pos_end,
+                    'Division by zero',
+                    self.context
+                )
+
+            return Number(self.value / other.value).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def exponentiate(self, other):
+        if isinstance(other, Number):
+            return Number(self.value ** other.value).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def equals(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value == other.value)).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def not_equals(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value != other.value)).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def less_than(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value < other.value)).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def greater_than(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value > other.value)).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def less_than_or_equal(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value <= other.value)).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def greater_than_or_equal(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value >= other.value)).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def logical_and(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value and other.value)).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def logical_or(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value or other.value)).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def logical_not(self):
+        return Number(1 if self.value == 0 else 0).set_context(self.context), None
+
+    def copy(self):
+        copy = Number(self.value)
+        copy.set_pos(self.pos_beg, self.pos_end)
+        copy.set_context(self.context)
+        return copy
+
+    def is_true(self):
+        return self.value != 0
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class Function(Value):
+    def __init__(self, name, body_node, arg_names):
+        super().__init__()
+        self.name = name or "<anonymous>"
+        self.body_node = body_node
+        self.arg_names = arg_names
+
+    def test(self, args):
+        res = RTResult()
+        interpreter = Interpreter()
+        new_context = Context(self.name, self.context, self.pos_beg)
+        new_context.symbol_table = SymbolTable(new_context.parent.symbol_table)
+
+        if len(args) > len(self.arg_names):
+            return res.failure(RTError(
+                self.pos_beg,
+                self.pos_end,
+                f"{len(args) - len(self.arg_names)} too many arguments passed into '{self.name}'",
+                self.context
+            ))
+
+        if len(args) < len(self.arg_names):
+            return res.failure(RTError(
+                self.pos_beg,
+                self.pos_end,
+                f"{len(self.arg_names) - len(args)} too few arguments passed into '{self.name}'",
+                self.context
+            ))
+
+        for i in range(len(args)):
+            arg_name = self.arg_names[i]
+            arg_value = args[i]
+            arg_value.set_context(new_context)
+            new_context.symbol_table.set(arg_name, arg_value)
+
+        value = res.register(interpreter.execute(self.body_node, new_context))
+        if res.error:
+            return res
+        return res.success(value)
+
+    def copy(self):
+        copy = Function(self.name, self.body_node, self.arg_names)
+        copy.set_context(self.context)
+        copy.set_pos(self.pos_beg, self.pos_end)
+        return copy
+
+    def __repr__(self):
+        return f"<function {self.name}>"
 
 
 # ----------- RUNTIME RESULT ----------------
@@ -38,9 +286,9 @@ class Context:
 # ------------- SYMBOL TABLE ----------------
 
 class SymbolTable:
-    def __init__(self):
+    def __init__(self, parent=None):
         self.symbols = {}
-        self.parent = None
+        self.parent = parent
 
     def get(self, name):
         value = self.symbols.get(name, None)
@@ -73,7 +321,7 @@ class Interpreter:
     @staticmethod
     def execute_VarAccessNode(node, context):
         res = RTResult()
-        var_name = node.var_name_tok.value
+        var_name = node.var_name_token.value
         value = context.symbol_table.get(var_name)
 
         if not value:
@@ -88,7 +336,7 @@ class Interpreter:
 
     def execute_VarAssignNode(self, node, context):
         res = RTResult()
-        var_name = node.var_name_tok.value
+        var_name = node.var_name_token.value
         value = res.register(self.execute(node.value_node, context))
         if res.error:
             return res
@@ -223,7 +471,7 @@ class Interpreter:
             condition = lambda: i > end_value.value
 
         while condition():
-            context.symbol_table.set(node.var_name_tok.value, Number(i))
+            context.symbol_table.set(node.var_name_token.value, Number(i))
             i += step_value.value
 
             res.register(self.execute(node.body_node, context))
@@ -231,6 +479,40 @@ class Interpreter:
                 return res
 
         return res.success(None)
+
+    @staticmethod
+    def execute_FuncDefNode(node, context):
+        res = RTResult()
+
+        func_name = node.var_name_token.value if node.var_name_token else None
+        body_node = node.body_node
+        arg_names = [arg_name.value for arg_name in node.arg_name_tokens]
+        func_value = Function(func_name, body_node, arg_names).set_context(context).set_pos(node.pos_beg,
+                                                                                            node.pos_end)
+
+        if node.var_name_token:
+            context.symbol_table.set(func_name, func_value)
+
+        return res.success(func_value)
+
+    def execute_CallNode(self, node, context):
+        res = RTResult()
+        args = []
+
+        value_to_call = res.register(self.execute(node.node_to_call, context))
+        if res.error:
+            return res
+        value_to_call = value_to_call.copy().set_pos(node.pos_beg, node.pos_end)
+
+        for arg_node in node.arg_nodes:
+            args.append(res.register(self.execute(arg_node, context)))
+            if res.error:
+                return res
+
+        return_value = res.register(value_to_call.test(args))
+        if res.error:
+            return res
+        return res.success(return_value)
 
 
 # ----------------- RUN ---------------------

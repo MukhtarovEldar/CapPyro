@@ -19,22 +19,22 @@ class NumberNode(ASTNode):
 
 
 class VarAccessNode(ASTNode):
-    def __init__(self, var_name_tok):
-        super().__init__(var_name_tok.pos_beg, var_name_tok.pos_end)
-        self.var_name_tok = var_name_tok
+    def __init__(self, var_name_token):
+        super().__init__(var_name_token.pos_beg, var_name_token.pos_end)
+        self.var_name_token = var_name_token
 
     def __repr__(self):
-        return f"{self.var_name_tok}"
+        return f"{self.var_name_token}"
 
 
 class VarAssignNode(ASTNode):
-    def __init__(self, var_name_tok, value_node):
-        super().__init__(var_name_tok.pos_beg, value_node.pos_end)
-        self.var_name_tok = var_name_tok
+    def __init__(self, var_name_token, value_node):
+        super().__init__(var_name_token.pos_beg, value_node.pos_end)
+        self.var_name_token = var_name_token
         self.value_node = value_node
 
     def __repr__(self):
-        return f"(VarAssignNode: {self.var_name_tok} = {self.value_node})"
+        return f"(VarAssignNode: {self.var_name_token} = {self.value_node})"
 
 
 class BinOpNode(ASTNode):
@@ -77,12 +77,41 @@ class WhileNode:
 
 
 class ForNode:
-    def __init__(self, var_name_tok, start_value_node, end_value_node, step_value_node, body_node):
-        self.var_name_tok = var_name_tok
+    def __init__(self, var_name_token, start_value_node, end_value_node, step_value_node, body_node):
+        self.var_name_token = var_name_token
         self.start_value_node = start_value_node
         self.end_value_node = end_value_node
         self.step_value_node = step_value_node
         self.body_node = body_node
 
-        self.pos_beg = self.var_name_tok.pos_beg
+        self.pos_beg = self.var_name_token.pos_beg
         self.pos_end = self.body_node.pos_end
+
+
+class FuncDefNode:
+    def __init__(self, var_name_token, arg_name_tokens, body_node):
+        self.var_name_token = var_name_token
+        self.arg_name_tokens = arg_name_tokens
+        self.body_node = body_node
+
+        if self.var_name_token:
+            self.pos_beg = self.var_name_token.pos_beg
+        elif len(self.arg_name_tokens) > 0:
+            self.pos_beg = self.arg_name_tokens[0].pos_beg
+        else:
+            self.pos_beg = self.body_node.pos_beg
+
+        self.pos_end = self.body_node.pos_end
+
+
+class CallNode:
+    def __init__(self, node_to_call, arg_nodes):
+        self.node_to_call = node_to_call
+        self.arg_nodes = arg_nodes
+
+        self.pos_beg = self.node_to_call.pos_beg
+
+        if len(self.arg_nodes) > 0:
+            self.pos_end = self.arg_nodes[len(self.arg_nodes) - 1].pos_end
+        else:
+            self.pos_end = self.node_to_call.pos_end
