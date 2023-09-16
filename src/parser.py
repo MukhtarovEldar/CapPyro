@@ -195,6 +195,11 @@ class Parser:
             self.advance()
             return res.success(NumberNode(tok))
 
+        elif tok.type in TOK_STR:
+            res.register_advancement()
+            self.advance()
+            return res.success(StringNode(tok))
+
         elif tok.type == TOK_ID:
             res.register_advancement()
             self.advance()

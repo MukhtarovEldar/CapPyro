@@ -40,7 +40,7 @@ python shell.py
   - `atom (LPAR (expr (COMMA expr)*)* RPAR)*` - A call to a function passing zero or more arguments enclosed in parentheses.
 
 - **atom** -- Represents the basic building blocks of expressions.
-  - `INT | FLOAT | ID` - Integer, floating-point number, or identifier.
+  - `INT | FLOAT | STRING | ID ` - Integer, floating-point number, or identifier.
   - `LPAR expr RPAR` - An expression enclosed in parentheses.
   - `if-expr` - An if-else statement.
   - `while-expr` - A while-loop statement.

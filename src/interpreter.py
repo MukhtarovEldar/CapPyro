@@ -61,7 +61,7 @@ class Value:
     def logical_or(self, other):
         return None, self.illegal_operation(other)
 
-    def logical_not(self):
+    def logical_not(self, other):
         return None, self.illegal_operation(other)
 
     def test(self, args):
@@ -88,18 +88,10 @@ class Number(Value):
     def __init__(self, value):
         super().__init__()
         self.value = value
+        self.other = None
         self.pos_beg = None
         self.pos_end = None
         self.context = None
-
-    # def set_pos(self, pos_beg=None, pos_end=None):
-    #     self.pos_beg = pos_beg
-    #     self.pos_end = pos_end
-    #     return self
-    #
-    # def set_context(self, context=None):
-    #     self.context = context
-    #     return self
 
     def add(self, other):
         if isinstance(other, Number):
@@ -114,7 +106,9 @@ class Number(Value):
             return None, Value.illegal_operation(self, other)
 
     def multiply(self, other):
-        if isinstance(other, Number):
+        if isinstance(other, String):
+            return String(self.value * other.value).set_context(self.context), None
+        elif isinstance(other, Number):
             return Number(self.value * other.value).set_context(self.context), None
         else:
             return None, Value.illegal_operation(self, other)
@@ -200,6 +194,36 @@ class Number(Value):
 
     def __repr__(self):
         return str(self.value)
+
+
+class String(Value):
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+
+    def add(self, other):
+        if isinstance(other, String):
+            return String(self.value + other.value).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def multiply(self, other):
+        if isinstance(other, Number):
+            return String(self.value * other.value).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def is_true(self):
+        return len(self.value) > 0
+
+    def copy(self):
+        copy = String(self.value)
+        copy.set_pos(self.pos_beg, self.pos_end)
+        copy.set_context(self.context)
+        return copy
+
+    def __repr__(self):
+        return f'"{self.value}"'
 
 
 class Function(Value):
@@ -317,6 +341,10 @@ class Interpreter:
     @staticmethod
     def execute_NumberNode(node, context):
         return RTResult().success(Number(node.tok.value).set_context(context).set_pos(node.pos_beg, node.pos_end))
+
+    @staticmethod
+    def execute_StringNode(node, context):
+        return RTResult().success(String(node.tok.value).set_context(context).set_pos(node.pos_beg, node.pos_end))
 
     @staticmethod
     def execute_VarAccessNode(node, context):

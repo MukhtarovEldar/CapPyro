@@ -45,6 +45,8 @@ class Lex:
                 tokens.append(self.create_id())
             elif self.current_char in OPERATORS:
                 tokens.append(self.create_operator())
+            elif self.current_char == '"':
+                tokens.append(self.create_string())
             elif self.current_char == '(':
                 tokens.append(self.create_token(TOK_LPAR))
             elif self.current_char == ')':
@@ -91,6 +93,34 @@ class Lex:
             return Token(TOK_INT, int(num_str), pos_beg, self.pos)
         else:
             return Token(TOK_FLOAT, float(num_str), pos_beg, self.pos)
+
+    def create_string(self):
+        new_str = ''
+        pos_beg = self.pos.copy()
+        escape_character = False
+        self.advance()
+
+        escape_characters = {
+            'n': '\n',
+            't': '\t',
+            'b': '\b',
+            'r': '\r'
+        }
+        # "Text \\n \" meaning \n or \t something"
+
+        while self.current_char is not None and (self.current_char != '"' or escape_character):
+            if escape_character:
+                escape_character = False
+                new_str += escape_characters.get(self.current_char, self.current_char)
+            else:
+                if self.current_char == '\\':
+                    escape_character = True
+                else:
+                    new_str += self.current_char
+            self.advance()
+
+        self.advance()
+        return Token(TOK_STR, new_str, pos_beg, self.pos)
 
     def create_id(self):
         id_str = ''

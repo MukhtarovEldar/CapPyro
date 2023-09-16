@@ -18,6 +18,15 @@ class NumberNode(ASTNode):
         return f"{self.tok}"
 
 
+class StringNode(ASTNode):
+    def __init__(self, tok):
+        super().__init__(tok.pos_beg, tok.pos_end)
+        self.tok = tok
+
+    def __repr__(self):
+        return f"{self.tok}"
+
+
 class VarAccessNode(ASTNode):
     def __init__(self, var_name_token):
         super().__init__(var_name_token.pos_beg, var_name_token.pos_end)
