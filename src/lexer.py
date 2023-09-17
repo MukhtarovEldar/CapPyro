@@ -18,7 +18,17 @@ OPERATORS = {
     '^': TOK_POW,
     '(': TOK_LPAR,
     ')': TOK_RPAR,
+    '[': TOK_LSQUARE,
+    ']': TOK_RSQUARE
 }
+
+# LIST_OPERATORS = {
+#     '+': TOK_LSTADD,
+#     '-': TOK_LSTSUBT,
+#     '*': TOK_LSTMULT,
+#     '/': TOK_LSTDIV,
+#     '^': TOK_LSTPOW
+# }
 
 
 class Lex:
@@ -47,10 +57,8 @@ class Lex:
                 tokens.append(self.create_operator())
             elif self.current_char == '"':
                 tokens.append(self.create_string())
-            elif self.current_char == '(':
-                tokens.append(self.create_token(TOK_LPAR))
-            elif self.current_char == ')':
-                tokens.append(self.create_token(TOK_RPAR))
+            elif self.current_char == '.':
+                tokens.append(self.create_dot_operator())
             elif self.current_char == '!':
                 token, error = self.create_not_equals()
                 if error:
@@ -106,7 +114,6 @@ class Lex:
             'b': '\b',
             'r': '\r'
         }
-        # "Text \\n \" meaning \n or \t something"
 
         while self.current_char is not None and (self.current_char != '"' or escape_character):
             if escape_character:
@@ -139,10 +146,19 @@ class Lex:
         self.advance()
         return Token(OPERATORS[operator], pos_beg=pos_beg, pos_end=self.pos)
 
-    def create_token(self, tok_type):
+    # def create_token(self, tok_type):
+    #     pos_beg = self.pos.copy()
+    #     self.advance()
+    #     return Token(tok_type, pos_beg=pos_beg, pos_end=self.pos)
+
+    def create_dot_operator(self):
         pos_beg = self.pos.copy()
         self.advance()
-        return Token(tok_type, pos_beg=pos_beg, pos_end=self.pos)
+        if self.current_char == '[':
+            return Token(TOK_DOT, pos_beg=pos_beg, pos_end=self.pos)
+        return None, ExpectedCharError(pos_beg, self.pos, "'[' (after '.')")
+
+    #   TODO: Add Remove, Pop, and other functions for lists
 
     def create_not_equals(self):
         pos_beg = self.pos.copy()

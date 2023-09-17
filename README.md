@@ -40,12 +40,13 @@ python shell.py
   - `atom (LPAR (expr (COMMA expr)*)* RPAR)*` - A call to a function passing zero or more arguments enclosed in parentheses.
 
 - **atom** -- Represents the basic building blocks of expressions.
-  - `INT | FLOAT | STRING | ID ` - Integer, floating-point number, or identifier.
+  - `INT | FLOAT | STRING | ID ` - Integer, floating-point number, string, or identifier.
   - `LPAR expr RPAR` - An expression enclosed in parentheses.
   - `if-expr` - An if-else statement.
   - `while-expr` - A while-loop statement.
   - `for-expr` - A for-loop statement.
   - `func-def` - A function definition statement.
+  - `list-expr` - A list creation expression.
 
 - **if-expr** -- Represents an if-else statement.
   - `IF expr THEN expr (ELIF expr THEN expr)* (ELSE expr)*` - Conditional statements with optional elif and else branches.
@@ -57,8 +58,10 @@ python shell.py
   - `FOR ID EQ expr TO expr (STEP expr)* THEN expr` - A loop that iterates from an initial value to a final value with an optional step value (defaulting to 1 if not provided).
 
 - **func-def** -- Represents the definition of a user-defined function.
-  - `FUNC (ID)* LPAR (ID (COMMA ID)*)* RPAR COLON expr` - Defines a function with an identifier, a list of parameters, and a body expression.
+  - `FUNC (ID)* LPAR (ID (COMMA ID)*)* RPAR COLON expr` - Definition of a function with an identifier, a list of parameters, and a body expression.
 
+- **list-expr** -- Represents a list creation expression.
+  - `LSQUARE (expr (COMMA expr)*)* RSQUARE` - A list creation by specifying its elements, separated by commas, enclosed in square brackets.
 
 ### Special Keywords
 The following keywords are reserved and may not be used as variable or function name:

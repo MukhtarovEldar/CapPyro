@@ -67,25 +67,23 @@ class UnaryOpNode(ASTNode):
         return f"({self.operator_token}{self.node})"
 
 
-class IfNode:
+class IfNode(ASTNode):
     def __init__(self, cases, else_case):
         self.cases = cases
         self.else_case = else_case
 
-        self.pos_beg = self.cases[0][0].pos_beg
-        self.pos_end = (self.else_case or self.cases[len(self.cases) - 1][0]).pos_end
+        super().__init__(self.cases[0][0].pos_beg, (self.else_case or self.cases[len(self.cases) - 1][0]).pos_end)
 
 
-class WhileNode:
+class WhileNode(ASTNode):
     def __init__(self, condition_node, body_node):
         self.condition_node = condition_node
         self.body_node = body_node
 
-        self.pos_beg = self.condition_node.pos_beg
-        self.pos_end = self.body_node.pos_end
+        super().__init__(self.condition_node.pos_beg, self.body_node.pos_end)
 
 
-class ForNode:
+class ForNode(ASTNode):
     def __init__(self, var_name_token, start_value_node, end_value_node, step_value_node, body_node):
         self.var_name_token = var_name_token
         self.start_value_node = start_value_node
@@ -93,34 +91,36 @@ class ForNode:
         self.step_value_node = step_value_node
         self.body_node = body_node
 
-        self.pos_beg = self.var_name_token.pos_beg
-        self.pos_end = self.body_node.pos_end
+        super().__init__(self.var_name_token.pos_beg, self.body_node.pos_end)
 
 
-class FuncDefNode:
+class FuncDefNode(ASTNode):
     def __init__(self, var_name_token, arg_name_tokens, body_node):
         self.var_name_token = var_name_token
         self.arg_name_tokens = arg_name_tokens
         self.body_node = body_node
 
         if self.var_name_token:
-            self.pos_beg = self.var_name_token.pos_beg
+            super().__init__(self.var_name_token.pos_beg, self.body_node.pos_end)
         elif len(self.arg_name_tokens) > 0:
-            self.pos_beg = self.arg_name_tokens[0].pos_beg
+            super().__init__(self.arg_name_tokens[0].pos_beg, self.body_node.pos_end)
         else:
-            self.pos_beg = self.body_node.pos_beg
-
-        self.pos_end = self.body_node.pos_end
+            super().__init__(self.body_node.pos_beg, self.body_node.pos_end)
 
 
-class CallNode:
+class CallNode(ASTNode):
     def __init__(self, node_to_call, arg_nodes):
         self.node_to_call = node_to_call
         self.arg_nodes = arg_nodes
 
-        self.pos_beg = self.node_to_call.pos_beg
-
         if len(self.arg_nodes) > 0:
-            self.pos_end = self.arg_nodes[len(self.arg_nodes) - 1].pos_end
+            super().__init__(self.node_to_call.pos_beg, self.arg_nodes[len(self.arg_nodes) - 1].pos_end)
         else:
-            self.pos_end = self.node_to_call.pos_end
+            super().__init__(self.node_to_call.pos_beg, self.node_to_call.pos_end)
+
+
+class ListNode(ASTNode):
+    def __init__(self, element_nodes, pos_beg, pos_end):
+        self.element_nodes = element_nodes
+
+        super().__init__(pos_beg, pos_end)

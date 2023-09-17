@@ -51,7 +51,7 @@ class Parser:
             return res.failure(InvalidSyntaxError(
                 self.current_tok.pos_beg,
                 self.current_tok.pos_end,
-                "Expected '+', '-', '*' or '/'"))
+                "Expected '+', '-', '*', '/' or '^'"))
         return res
 
     def expr(self):
@@ -92,7 +92,7 @@ class Parser:
             return res.failure(InvalidSyntaxError(
                 self.current_tok.pos_beg,
                 self.current_tok.pos_end,
-                "Expected 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(' or 'NOT'"))
+                "Expected 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(', '[' or 'NOT'"))
 
         return res.success(node)
 
@@ -116,13 +116,13 @@ class Parser:
             return res.failure(InvalidSyntaxError(
                 self.current_tok.pos_beg,
                 self.current_tok.pos_end,
-                "Expected int, float, identifier, '+', '-', '(' or 'NOT'"
+                "Expected int, float, identifier, '+', '-', '(', '[' or 'NOT'"
             ))
 
         return res.success(node)
 
     def arith_expr(self):
-        return self.bin_op(self.term, (TOK_PLUS, TOK_MINUS))
+        return self.bin_op(self.term, (TOK_PLUS, TOK_MINUS, TOK_DOT))
 
     def term(self):
         return self.bin_op(self.factor, (TOK_MULT, TOK_DIV))
@@ -131,7 +131,7 @@ class Parser:
         res = ParseResult()
         tok = self.current_tok
 
-        if tok.type in (TOK_PLUS, TOK_MINUS):
+        if tok.type in (TOK_PLUS, TOK_MINUS, TOK_DOT):
             res.register_advancement()
             self.advance()
             factor = res.register(self.factor())
@@ -165,7 +165,7 @@ class Parser:
                         self.current_tok.pos_beg,
                         self.current_tok.pos_end,
                         "Expected ')', 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', "
-                        "'(' or 'NOT' "))
+                        "'(', '[' or 'NOT' "))
 
                 while self.current_tok.type == TOK_COMMA:
                     res.register_advancement()
@@ -220,6 +220,13 @@ class Parser:
                     self.current_tok.pos_beg,
                     self.current_tok.pos_end,
                     "Expected ')'"))
+
+        elif tok.type == TOK_LSQUARE:
+            list_expr = res.register(self.list_expr())
+            if res.error:
+                return res
+            return res.success(list_expr)
+
         elif tok.is_match(TOK_KEYWORD, 'IF'):
             if_expr = res.register(self.if_expr())
             if res.error:
@@ -247,7 +254,7 @@ class Parser:
         return res.failure(InvalidSyntaxError(
             tok.pos_beg,
             tok.pos_end,
-            "Expected int, float, identifier, '+', '-', '(', 'IF', 'FOR', 'WHILE', 'FUN'"))
+            "Expected int, float, identifier, '+', '-', '(', '[', 'IF', 'FOR', 'WHILE', 'FUN'"))
 
     def if_expr(self):
         res = ParseResult()
@@ -501,6 +508,55 @@ class Parser:
             var_name_token,
             arg_name_tokens,
             node_to_return
+        ))
+
+    def list_expr(self):
+        res = ParseResult()
+        element_nodes = []
+        pos_beg = self.current_tok.pos_beg.copy()
+
+        if self.current_tok.type != TOK_LSQUARE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_beg,
+                self.current_tok.pos_end,
+                f"Expected '['"))
+
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type == TOK_RSQUARE:
+            res.register_advancement()
+            self.advance()
+        else:
+            element_nodes.append(res.register(self.expr()))
+            if res.error:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_beg, self.current_tok.pos_end,
+                    "Expected ']', 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(', "
+                    "'[' or 'NOT' "
+                ))
+
+            while self.current_tok.type == TOK_COMMA:
+                res.register_advancement()
+                self.advance()
+
+                element_nodes.append(res.register(self.expr()))
+                if res.error:
+                    return res
+
+            if self.current_tok.type != TOK_RSQUARE:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_beg, self.current_tok.pos_end,
+                    f"Expected ',' or ']'"
+                ))
+
+            res.register_advancement()
+            self.advance()
+
+        return res.success(ListNode(
+            element_nodes,
+            pos_beg,
+            self.current_tok.pos_end.copy()
         ))
 
     def bin_op(self, func_a, ops, func_b=None):

@@ -64,7 +64,7 @@ class Value:
     def logical_not(self, other):
         return None, self.illegal_operation(other)
 
-    def test(self, args):
+    def execute(self, args):
         return RTResult().failure(self.illegal_operation())
 
     def copy(self):
@@ -233,7 +233,7 @@ class Function(Value):
         self.body_node = body_node
         self.arg_names = arg_names
 
-    def test(self, args):
+    def execute(self, args):
         res = RTResult()
         interpreter = Interpreter()
         new_context = Context(self.name, self.context, self.pos_beg)
@@ -274,6 +274,59 @@ class Function(Value):
 
     def __repr__(self):
         return f"<function {self.name}>"
+
+
+class List(Value):
+    def __init__(self, elements):
+        super().__init__()
+        self.elements = elements
+
+    def add(self, other):
+        if isinstance(other, List):
+            new_list = self.copy()
+            new_list.elements.extend(other.elements)
+            return new_list, None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    # def subtract(self, other):
+    #     if isinstance(other, List):
+    #         new_list = self.copy()
+    #         for item in other.elements:
+    #             while item in self.elements:
+    #                 new_list.elements.remove(item)
+    #         print(new_list)
+    #         return new_list, None
+    #     else:
+    #         return None, Value.illegal_operation(self, other)
+
+    def indexed(self, other):
+        if isinstance(other, List):
+            try:
+                if len(other.elements) != 1:
+                    return None, InvalidSyntaxError(
+                        other.pos_beg,
+                        other.pos_end,
+                        "Index variable must be a single integer"
+                    )
+                return self.elements[other.elements[0].value], None
+            except:
+                return None, RTError(
+                    other.pos_beg, other.pos_end,
+                    'Index out of bounds: Element at this index could not be retrieved from the list',
+                    self.context
+                )
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def copy(self):
+        copy = List(self.elements[:])
+        copy.set_pos(self.pos_beg, self.pos_end)
+        copy.set_context(self.context)
+        return copy
+
+    def __repr__(self):
+        return f'[{", ".join([str(x) for x in self.elements])}]'
 
 
 # ----------- RUNTIME RESULT ----------------
@@ -410,6 +463,8 @@ class Interpreter:
             result, error = left.logical_and(right)
         elif node.operator_token.is_match(TOK_KEYWORD, 'OR'):
             result, error = left.logical_or(right)
+        elif node.operator_token.type == TOK_DOT:
+            result, error = left.indexed(right)
 
         if error:
             return res.failure(error)
@@ -458,6 +513,7 @@ class Interpreter:
 
     def execute_WhileNode(self, node, context):
         res = RTResult()
+        elements = []
 
         while True:
             condition = res.register(self.execute(node.condition_node, context))
@@ -467,14 +523,15 @@ class Interpreter:
             if not condition.is_true():
                 break
 
-            res.register(self.execute(node.body_node, context))
+            elements.append(res.register(self.execute(node.body_node, context)))
             if res.error:
                 return res
 
-        return res.success(None)
+        return res.success(List(elements).set_context(context).set_pos(node.pos_beg, node.pos_end))
 
     def execute_ForNode(self, node, context):
         res = RTResult()
+        elements = []
 
         start_value = res.register(self.execute(node.start_value_node, context))
         if res.error:
@@ -502,11 +559,11 @@ class Interpreter:
             context.symbol_table.set(node.var_name_token.value, Number(i))
             i += step_value.value
 
-            res.register(self.execute(node.body_node, context))
+            elements.append(res.register(self.execute(node.body_node, context)))
             if res.error:
                 return res
 
-        return res.success(None)
+        return res.success(List(elements).set_context(context).set_pos(node.pos_beg, node.pos_end))
 
     @staticmethod
     def execute_FuncDefNode(node, context):
@@ -537,10 +594,21 @@ class Interpreter:
             if res.error:
                 return res
 
-        return_value = res.register(value_to_call.test(args))
+        return_value = res.register(value_to_call.execute(args))
         if res.error:
             return res
         return res.success(return_value)
+
+    def execute_ListNode(self, node, context):
+        res = RTResult()
+        elements = []
+
+        for element_node in node.element_nodes:
+            elements.append(res.register(self.execute(element_node, context)))
+            if res.error:
+                return res
+
+        return res.success(List(elements).set_context(context).set_pos(node.pos_beg, node.pos_end))
 
 
 # ----------------- RUN ---------------------
