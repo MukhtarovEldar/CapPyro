@@ -26,8 +26,8 @@ python shell.py
 - **arith-expr** -- Represents an arithmetic expression.
   - `term ((PLUS | MINUS) term)*` - Addition or subtraction of terms.
 
-- **term** -- Represents a term in an arithmetic expression.
-  - `factor ((MULT | DIV) factor)*` - Multiplication or division of factors.
+- **term** -- Represents a term in an expression.
+  - `factor ((MULT | DIV | DOT) factor)*` - Multiplication, division, or dot operation of factors.
 
 - **factor** -- Represents a factor in an arithmetic expression.
   - `(PLUS | MINUS)* factor` - Unary plus or minus.

@@ -125,13 +125,14 @@ class Parser:
         return self.bin_op(self.term, (TOK_PLUS, TOK_MINUS, TOK_DOT))
 
     def term(self):
-        return self.bin_op(self.factor, (TOK_MULT, TOK_DIV))
+        return self.bin_op(self.factor, (TOK_MULT, TOK_DIV, TOK_DOT))
+    # TODO: Correct the problem with DOT in AST --- ex. [1, 2, 3] + [[4].[0]] should print [1, 2, 3, 4]
 
     def factor(self):
         res = ParseResult()
         tok = self.current_tok
 
-        if tok.type in (TOK_PLUS, TOK_MINUS, TOK_DOT):
+        if tok.type in (TOK_PLUS, TOK_MINUS):
             res.register_advancement()
             self.advance()
             factor = res.register(self.factor())

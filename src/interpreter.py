@@ -196,6 +196,11 @@ class Number(Value):
         return str(self.value)
 
 
+Number.null = Number(0)
+Number.true = Number(1)
+Number.false = Number(0)
+
+
 class String(Value):
     def __init__(self, value):
         super().__init__()
@@ -224,6 +229,52 @@ class String(Value):
 
     def __repr__(self):
         return f'"{self.value}"'
+
+
+class BaseFunction(Value):
+    def __init__(self, name):
+        super().__init__()
+        self.name = name or "<anonymous>"
+
+    def generate_new_context(self):
+        new_context = Context(self.name, self.context, self.pos_beg)
+        new_context.symbol_table = SymbolTable(new_context.parent.symbol_table)
+        return new_context
+
+    def check_args(self, arg_names, args):
+        res = RTResult()
+
+        if len(args) > len(arg_names):
+            return res.failure(RTError(
+                self.pos_beg, self.pos_end,
+                f"{len(args) - len(arg_names)} too many args passed into {self}",
+                self.context
+            ))
+
+        if len(args) < len(arg_names):
+            return res.failure(RTError(
+                self.pos_beg, self.pos_end,
+                f"{len(arg_names) - len(args)} too few args passed into {self}",
+                self.context
+            ))
+
+        return res.success(None)
+
+    @staticmethod
+    def populate_args(arg_names, args, exec_ctx):
+        for i in range(len(args)):
+            arg_name = arg_names[i]
+            arg_value = args[i]
+            arg_value.set_context(exec_ctx)
+            exec_ctx.symbol_table.set(arg_name, arg_value)
+
+    def check_and_populate_args(self, arg_names, args, exec_ctx):
+        res = RTResult()
+        res.register(self.check_args(arg_names, args))
+        if res.error:
+            return res
+        self.populate_args(arg_names, args, exec_ctx)
+        return res.success(None)
 
 
 class Function(Value):
@@ -289,16 +340,21 @@ class List(Value):
         else:
             return None, Value.illegal_operation(self, other)
 
-    # def subtract(self, other):
-    #     if isinstance(other, List):
-    #         new_list = self.copy()
-    #         for item in other.elements:
-    #             while item in self.elements:
-    #                 new_list.elements.remove(item)
-    #         print(new_list)
-    #         return new_list, None
-    #     else:
-    #         return None, Value.illegal_operation(self, other)
+    def subtract(self, other):
+        if isinstance(other, List):
+            new_list = self.copy()
+            new_list.elements = [item for item in new_list.elements if
+                                 item.value not in [i.value for i in other.elements]]
+            return new_list, None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def multiply(self, other):
+        if isinstance(other, Number):
+            self.elements *= other.value
+            return self, None
+        else:
+            return None, Value.illegal_operation(self, other)
 
     def indexed(self, other):
         if isinstance(other, List):
@@ -614,7 +670,9 @@ class Interpreter:
 # ----------------- RUN ---------------------
 
 global_symbol_table = SymbolTable()
-global_symbol_table.set("null", Number(0))
+global_symbol_table.set("NULL", Number.null)
+global_symbol_table.set("TRUE", Number.true)
+global_symbol_table.set("FALSE", Number.false)
 
 
 def run_program(name, text):

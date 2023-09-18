@@ -22,14 +22,6 @@ OPERATORS = {
     ']': TOK_RSQUARE
 }
 
-# LIST_OPERATORS = {
-#     '+': TOK_LSTADD,
-#     '-': TOK_LSTSUBT,
-#     '*': TOK_LSTMULT,
-#     '/': TOK_LSTDIV,
-#     '^': TOK_LSTPOW
-# }
-
 
 class Lex:
     def __init__(self, name, text):
