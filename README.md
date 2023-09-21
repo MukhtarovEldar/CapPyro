@@ -13,7 +13,9 @@ python shell.py
 ```
 
 ## Expression Structure
-**Note**: `(expr)*` indicates optional expressions.
+**Note**: `expr*` indicates zero or more occurrences of the `expr`, and `expr+` indicates that at least one occurrence of the `expr` is required.
+
+**statements**: `NEWLINE* expr (NEWLINE+ expr)* NEWLINE*`
 
 - **expr** -- Represents an expression.
   - `VAR ID EQ expr` - Assignment of a variable.
@@ -49,16 +51,23 @@ python shell.py
   - `list-expr` - A list creation expression.
 
 - **if-expr** -- Represents an if-else statement.
-  - `IF expr THEN expr (ELIF expr THEN expr)* (ELSE expr)*` - Conditional statements with optional elif and else branches.
+  <br>&nbsp; &nbsp; &nbsp; &nbsp;`IF expr THEN` - Initiates an if-else block.
+  <br>&nbsp; &nbsp; &nbsp; &nbsp;`expr`
+  <br>&nbsp; &nbsp; &nbsp; &nbsp;`(ELIF expr THEN)*` - Optional expression for the `ELIF` branches.
+  - `expr` 
+  <br>`(ELSE expr)*` - Optional expression for the `ELSE` branch.
+  <br>`expr`
+  <br>`END` - Marks the end of the if-else statement.
+
 
 - **while-expr** -- Represents a while-loop statement.
-  - `WHILE expr THEN expr` - A loop that continues while a condition is true.
+  - `WHILE expr THEN expr NEWLINE statements END` - A loop that continues while a condition is true.
 
 - **for-expr** -- Represents a for-loop statement.
-  - `FOR ID EQ expr TO expr (STEP expr)* THEN expr` - A loop that iterates from an initial value to a final value with an optional step value (defaulting to 1 if not provided).
+  - `FOR ID EQ expr TO expr (STEP expr)* THEN expr NEWLINE statements END` - A loop that iterates from an initial value to a final value with an optional step value (defaulting to 1 if not provided).
 
 - **func-def** -- Represents the definition of a user-defined function.
-  - `FUNC (ID)* LPAR (ID (COMMA ID)*)* RPAR COLON expr` - Definition of a function with an identifier, a list of parameters, and a body expression.
+  - `FUNC (ID)* LPAR (ID (COMMA ID)*)* RPAR COLON expr NEWLINE statements END` - Definition of a function with an identifier, a list of parameters, and a body expression.
 
 - **list-expr** -- Represents a list creation expression.
   - `LSQUARE (expr (COMMA expr)*)* RSQUARE` - A list creation by specifying its elements, separated by commas, enclosed in square brackets.

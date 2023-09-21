@@ -41,6 +41,9 @@ class Lex:
         while self.current_char is not None:
             if self.current_char in ' \t':
                 self.advance()
+            elif self.current_char in ';\n':
+                tokens.append(Token(TOK_NEWLINE, pos_beg=self.pos))
+                self.advance()
             elif self.current_char in DIGITS:
                 tokens.append(self.create_number())
             elif self.current_char in ALPHA:

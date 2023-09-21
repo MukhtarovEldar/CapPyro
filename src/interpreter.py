@@ -477,43 +477,79 @@ class List(Value):
             return None, Value.illegal_operation(self, other)
 
     # def subtract(self, other):
+    #     def remove_elements(a, b):
+    #         new_lst = a.copy()
+    #         res = []
+    #
+    #         for elem in new_lst.elements:
+    #             if not any(elem.value == elem_b.value for elem_b in b.elements):
+    #                 res.append(elem)
+    #
+    #         new_lst.elements = res
+    #         return new_lst
+    #
+    #     def check_instance(a, b):
+    #         res = List([])
+    #
+    #         for elem_a in a.elements:
+    #             for elem_b in b.elements:
+    #                 if isinstance(elem_a, list) and isinstance(elem_b, list):
+    #                     res.elements.append(remove_elements(a, b))
+    #                 elif not (isinstance(elem_a, list) or isinstance(elem_b, list)):
+    #                     return check_instance(List(elem_a), List(elem_b))
+    #                 else:
+    #                     return
+    #         return res
+    #
     #     if isinstance(other, List):
-    #         new_list = self.copy()
-    #         new_list.elements = [item for item in new_list.elements if
-    #                              item.value not in [i.value for i in other.elements]]
-    #         return new_list, None
+    #         return check_instance(self, other), None
     #     else:
     #         return None, Value.illegal_operation(self, other)
 
+    #     [1, 2, 3] - [1, 3]
+
     def subtract(self, other):
-        def deep_subtract(a, b):
-            if isinstance(b, List):
-                result = List([])
-                new_list = a.copy()
-                tmp_lst = List([])
-                for elem_b in b.elements:
-                    for elem_a in new_list.elements:
-                        if isinstance(elem_b, List) and isinstance(elem_a, List):
-                            subtracted_elem = deep_subtract(elem_b, elem_a)
-                            if subtracted_elem is not None:
-                                result.elements.append(subtracted_elem)
-                        if isinstance(elem_b, Number) and isinstance(elem_a, Number):
-                            if elem_a.value != elem_b.value:
-                                tmp_lst.elements.append(elem_a)
-                    new_list.elements = tmp_lst
-                    tmp_lst = List([])
-                result.elements.append(new_list)
-                print(new_list.elements)
-                if result is not None:
-                    return result, None
-
-            if isinstance(a, Number) and isinstance(b, Number):
-                return None if a.value == b.value else a
-
-            return None
+        def nested_lists(a, b):
+            new_lst = a.elements.copy()
+            res = List([])
+            for elem_b in b.elements:
+                other_res = []
+                tmp_lst = []
+                flag_NL = False
+                flag_L = False
+                for elem_a in new_lst:
+                    # other_res = []
+                    print(elem_a, "and", elem_b)
+                    if isinstance(elem_a, List) and isinstance(elem_b, List):
+                        tmp = nested_lists(elem_a, elem_b)
+                        if tmp:
+                            other_res.append(tmp)
+                            continue
+                        print(other_res, "- other")
+                        flag_L = True if other_res != [] else False
+                    elif not isinstance(elem_a, List) and not isinstance(elem_b, List):
+                        if elem_a.value != elem_b.value:
+                            tmp_lst.append(elem_a)
+                        print(tmp_lst, "*")
+                        flag_NL = True
+                    # elif isinstance(elem_a, List) and not isinstance(elem_b, List):
+                    #     res.elements.append(elem_a)
+                    #     continue
+                    # else:
+                    #     new_lst.append(elem_a)
+                if flag_NL:
+                    new_lst = tmp_lst.copy()
+                    res.elements = new_lst
+                if flag_L:
+                    print(other_res, "- other second")
+                    for x in other_res:
+                        res.elements += x
+                print(res)
+            return res
 
         if isinstance(other, List):
-            return deep_subtract(self, other), None
+            result = nested_lists(self, other)
+            return result, None
         else:
             return None, Value.illegal_operation(self, other)
 
