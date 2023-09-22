@@ -82,17 +82,17 @@ class Lex:
 
     def create_number(self):
         num_str = ''
-        dot_count = 0
+        dot_cnt = 0
         pos_beg = self.pos.copy()
 
         while self.current_char is not None and (
-                self.current_char in DIGITS or (self.current_char == '.' and dot_count == 0)):
+                self.current_char in DIGITS or (self.current_char == '.' and dot_cnt == 0)):
             if self.current_char == '.':
-                dot_count += 1
+                dot_cnt += 1
             num_str += self.current_char
             self.advance()
 
-        if dot_count == 0:
+        if dot_cnt == 0:
             return Token(TOK_INT, int(num_str), pos_beg, self.pos)
         else:
             return Token(TOK_FLOAT, float(num_str), pos_beg, self.pos)

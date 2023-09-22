@@ -51,15 +51,14 @@ python shell.py
   - `list-expr` - A list creation expression.
 
 - **if-expr** -- Represents an if-else statement.
-  <br>&nbsp; &nbsp; &nbsp; &nbsp;`IF expr THEN` - Initiates an if-else block.
+  - `IF expr THEN` - Initialization of an if-else block.
   <br>&nbsp; &nbsp; &nbsp; &nbsp;`expr`
-  <br>&nbsp; &nbsp; &nbsp; &nbsp;`(ELIF expr THEN)*` - Optional expression for the `ELIF` branches.
-  - `expr` 
-  <br>`(ELSE expr)*` - Optional expression for the `ELSE` branch.
-  <br>`expr`
-  <br>`END` - Marks the end of the if-else statement.
-
-
+  - `(ELIF expr THEN)*` - Optional expression for the `ELIF` branches.
+  <br>&nbsp; &nbsp; &nbsp; &nbsp;`expr` 
+  - `(ELSE expr)*` - Optional expression for the `ELSE` branch.
+  <br>&nbsp; &nbsp; &nbsp; &nbsp;`expr`
+  - `END` - Marks the end of the if-else statement.
+  
 - **while-expr** -- Represents a while-loop statement.
   - `WHILE expr THEN expr NEWLINE statements END` - A loop that continues while a condition is true.
 
