@@ -283,10 +283,11 @@ class BaseFunction(Value):
 
 
 class Function(BaseFunction):
-    def __init__(self, name, body_node, arg_names):
+    def __init__(self, name, body_node, arg_names, null_check):
         super().__init__(name)
         self.body_node = body_node
         self.arg_names = arg_names
+        self.null_check = null_check
 
     def execute(self, args):
         res = RTResult()
@@ -300,10 +301,10 @@ class Function(BaseFunction):
         value = res.register(interpreter.execute(self.body_node, exec_ctx))
         if res.error:
             return res
-        return res.success(value)
+        return res.success(Number.null if self.null_check else value)
 
     def copy(self):
-        copy = Function(self.name, self.body_node, self.arg_names)
+        copy = Function(self.name, self.body_node, self.arg_names, self.null_check)
         copy.set_context(self.context)
         copy.set_pos(self.pos_beg, self.pos_end)
         return copy
@@ -321,7 +322,7 @@ class BuiltInFunction(BaseFunction):
         exec_ctx = self.generate_new_context()
 
         method_name = f'execute_{self.name}'
-        method = getattr(self, method_name, self.no_visit_method)
+        method = getattr(self, method_name, self.no_execute_method)
 
         res.register(self.check_and_populate_args(method.arg_names, args, exec_ctx))
         if res.error:
@@ -332,7 +333,7 @@ class BuiltInFunction(BaseFunction):
             return res
         return res.success(return_value)
 
-    def no_visit_method(self, node, context):
+    def no_execute_method(self, node, context):
         raise Exception(f'No execute_{self.name} method defined.')
 
     def copy(self):
@@ -788,7 +789,8 @@ class Interpreter:
             if res.error:
                 return res
 
-        return res.success(List(elements).set_context(context).set_pos(node.pos_beg, node.pos_end))
+        return res.success(
+            Number.null if node.null_check else List(elements).set_context(context).set_pos(node.pos_beg, node.pos_end))
 
     def execute_ForNode(self, node, context):
         res = RTResult()
@@ -824,7 +826,8 @@ class Interpreter:
             if res.error:
                 return res
 
-        return res.success(List(elements).set_context(context).set_pos(node.pos_beg, node.pos_end))
+        return res.success(
+            Number.null if node.null_check else List(elements).set_context(context).set_pos(node.pos_beg, node.pos_end))
 
     @staticmethod
     def execute_FuncDefNode(node, context):
@@ -833,8 +836,9 @@ class Interpreter:
         func_name = node.var_name_token.value if node.var_name_token else None
         body_node = node.body_node
         arg_names = [arg_name.value for arg_name in node.arg_name_tokens]
-        func_value = Function(func_name, body_node, arg_names).set_context(context).set_pos(node.pos_beg,
-                                                                                            node.pos_end)
+        func_value = Function(func_name, body_node, arg_names, node.null_check).set_context(context).set_pos(
+            node.pos_beg,
+            node.pos_end)
 
         if node.var_name_token:
             context.symbol_table.set(func_name, func_value)

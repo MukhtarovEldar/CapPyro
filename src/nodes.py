@@ -76,29 +76,32 @@ class IfNode(ASTNode):
 
 
 class WhileNode(ASTNode):
-    def __init__(self, condition_node, body_node):
+    def __init__(self, condition_node, body_node, null_check):
         self.condition_node = condition_node
         self.body_node = body_node
+        self.null_check = null_check
 
         super().__init__(self.condition_node.pos_beg, self.body_node.pos_end)
 
 
 class ForNode(ASTNode):
-    def __init__(self, var_name_token, start_value_node, end_value_node, step_value_node, body_node):
+    def __init__(self, var_name_token, start_value_node, end_value_node, step_value_node, body_node, null_check):
         self.var_name_token = var_name_token
         self.start_value_node = start_value_node
         self.end_value_node = end_value_node
         self.step_value_node = step_value_node
         self.body_node = body_node
+        self.null_check = null_check
 
         super().__init__(self.var_name_token.pos_beg, self.body_node.pos_end)
 
 
 class FuncDefNode(ASTNode):
-    def __init__(self, var_name_token, arg_name_tokens, body_node):
+    def __init__(self, var_name_token, arg_name_tokens, body_node, null_check):
         self.var_name_token = var_name_token
         self.arg_name_tokens = arg_name_tokens
         self.body_node = body_node
+        self.null_check = null_check
 
         if self.var_name_token:
             super().__init__(self.var_name_token.pos_beg, self.body_node.pos_end)
