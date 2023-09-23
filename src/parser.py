@@ -11,6 +11,7 @@ class ParseResult:
         self.node = None
         self.advance_cnt = 0
         self.to_reverse_cnt = 0
+        self.last_registered_advance_cnt = 0
 
     def register_advancement(self):
         self.last_registered_advance_cnt = 1
@@ -59,7 +60,7 @@ class Parser:
         return self.current_tok
 
     def update_current_tok(self):
-        if self.tok_index >= 0 and self.tok_index < len(self.tokens):
+        if 0 <= self.tok_index < len(self.tokens):
             self.current_tok = self.tokens[self.tok_index]
 
     def parse(self):
@@ -183,8 +184,6 @@ class Parser:
 
     def term(self):
         return self.bin_op(self.factor, (TOK_MULT, TOK_DIV, TOK_DOT))
-
-    # TODO: Correct the problem with DOT in AST --- ex. [1, 2, 3] + [[4].[0]] should print [1, 2, 3, 4]
 
     def factor(self):
         res = ParseResult()
@@ -638,7 +637,8 @@ class Parser:
             return res.success(FuncDefNode(
                 var_name_token,
                 arg_name_tokens,
-                node_to_return
+                node_to_return,
+                False
             ))
 
         if self.current_tok.type != TOK_NEWLINE:

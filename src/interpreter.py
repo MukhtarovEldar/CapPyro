@@ -1,4 +1,3 @@
-from .lexer import *
 from .parser import *
 from .error import *
 
@@ -180,7 +179,7 @@ class Number(Value):
         else:
             return None, Value.illegal_operation(self, other)
 
-    def logical_not(self):
+    def logical_not(self, other=None):
         return Number(1 if self.value == 0 else 0).set_context(self.context), None
 
     def copy(self):
@@ -418,14 +417,25 @@ class BuiltInFunction(BaseFunction):
             ))
 
         try:
-            element = lst.elements.pop(index.value)
-        except:
+            index_value = index.value
+            if not isinstance(index_value, int):
+                raise TypeError("Index must be an integer")
+            if index_value < 0 or index_value >= len(lst.elements):
+                raise IndexError("Index out of bounds")
+            element = lst.elements.pop(index_value)
+            return RTResult().success(element)
+        except TypeError as e:
             return RTResult().failure(RTError(
                 self.pos_beg, self.pos_end,
-                'Element at this index could not be removed from list because index is out of bounds',
+                f'{str(e)}',
                 exec_ctx
             ))
-        return RTResult().success(element)
+        except IndexError as e:
+            return RTResult().failure(RTError(
+                self.pos_beg, self.pos_end,
+                f'{str(e)}',
+                exec_ctx
+            ))
 
     execute_pop.arg_names = ["list", "index"]
 
@@ -570,13 +580,22 @@ class List(Value):
                         other.pos_end,
                         "Index variable must be a single integer"
                     )
-                return self.elements[other.elements[0].value], None
-            except:
-                return None, RTError(
-                    other.pos_beg, other.pos_end,
-                    'Index out of bounds: Element at this index could not be retrieved from the list',
-                    self.context
-                )
+                index = other.elements[0]
+                if not isinstance(index, Number):
+                    return None, InvalidSyntaxError(
+                        other.pos_beg,
+                        other.pos_end,
+                        "Index variable must be an integer"
+                    )
+                elif index.value < 0 or index.value >= len(self.elements):
+                    return None, InvalidSyntaxError(
+                        other.pos_beg,
+                        other.pos_end,
+                        "Index out of bounds"
+                    )
+                return self.elements[index.value], None
+            except InvalidSyntaxError as e:
+                return None, e
         else:
             return None, Value.illegal_operation(self, other)
 
@@ -814,11 +833,11 @@ class Interpreter:
         i = start_value.value
 
         if step_value.value >= 0:
-            condition = lambda: i < end_value.value
+            condition = i < end_value.value
         else:
-            condition = lambda: i > end_value.value
+            condition = i > end_value.value
 
-        while condition():
+        while condition:
             context.symbol_table.set(node.var_name_token.value, Number(i))
             i += step_value.value
 
