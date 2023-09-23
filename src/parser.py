@@ -1,5 +1,5 @@
 from .nodes import *
-from .tokens import *
+from .lexer import *
 from .error import *
 
 
