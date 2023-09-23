@@ -72,7 +72,7 @@ class IfNode(ASTNode):
         self.cases = cases
         self.else_case = else_case
 
-        super().__init__(self.cases[0][0].pos_beg, (self.else_case or self.cases[len(self.cases) - 1][0]).pos_end)
+        super().__init__(self.cases[0][0].pos_beg, (self.else_case or self.cases[len(self.cases) - 1])[0].pos_end)
 
 
 class WhileNode(ASTNode):

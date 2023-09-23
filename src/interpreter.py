@@ -519,18 +519,18 @@ class List(Value):
                 flag_L = False
                 for elem_a in new_lst:
                     # other_res = []
-                    print(elem_a, "and", elem_b)
+                    # print(elem_a, "and", elem_b)
                     if isinstance(elem_a, List) and isinstance(elem_b, List):
                         tmp = nested_lists(elem_a, elem_b)
                         if tmp:
                             other_res.append(tmp)
                             continue
-                        print(other_res, "- other")
+                        # print(other_res, "- other")
                         flag_L = True if other_res != [] else False
                     elif not isinstance(elem_a, List) and not isinstance(elem_b, List):
                         if elem_a.value != elem_b.value:
                             tmp_lst.append(elem_a)
-                        print(tmp_lst, "*")
+                        # print(tmp_lst, "*")
                         flag_NL = True
                     # elif isinstance(elem_a, List) and not isinstance(elem_b, List):
                     #     res.elements.append(elem_a)
@@ -541,10 +541,10 @@ class List(Value):
                     new_lst = tmp_lst.copy()
                     res.elements = new_lst
                 if flag_L:
-                    print(other_res, "- other second")
+                    # print(other_res, "- other second")
                     for x in other_res:
                         res.elements += x
-                print(res)
+                # print(res)
             return res
 
         if isinstance(other, List):
@@ -752,7 +752,7 @@ class Interpreter:
     def execute_IfNode(self, node, context):
         res = RTResult()
 
-        for condition, expr in node.cases:
+        for condition, expr, null_check in node.cases:
             condition_value = res.register(self.execute(condition, context))
             if res.error:
                 return res
@@ -761,15 +761,16 @@ class Interpreter:
                 expr_value = res.register(self.execute(expr, context))
                 if res.error:
                     return res
-                return res.success(expr_value)
+                return res.success(Number.null if null_check else expr_value)
 
         if node.else_case:
-            else_value = res.register(self.execute(node.else_case, context))
+            expr, null_check = node.else_case
+            expr_value = res.register(self.execute(expr, context))
             if res.error:
                 return res
-            return res.success(else_value)
+            return res.success(Number.null if null_check else expr_value)
 
-        return res.success(None)
+        return res.success(Number.null)
 
     def execute_WhileNode(self, node, context):
         res = RTResult()

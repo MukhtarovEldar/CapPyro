@@ -9,4 +9,4 @@ while True:
     if error:
         print(error.to_string())
     elif result:
-        print(result if len(result) != 1 else result.elements)
+        print(result if len(result.elements) != 1 else result.elements[0])
